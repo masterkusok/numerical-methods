@@ -34,7 +34,6 @@ def check_convergence(alpha):
     max_sum = 0
 
     print("\nПроверка условия сходимости:")
-    print("-" * 60)
 
     for i in range(n):
         row_sum = 0
@@ -103,9 +102,7 @@ def simple_iteration_method(alpha, beta, epsilon, max_iterations):
 
 def check_solution(matrix, b, x):
     n = len(x)
-    print("\n" + "-" * 60)
     print("ПРОВЕРКА РЕШЕНИЯ:")
-    print("-" * 60)
 
     for i in range(n):
         summ = 0
@@ -151,15 +148,12 @@ matrix = [
 b = [72, 53, -50, -20]
 
 print("\nИсходная система уравнений:")
-print("-" * 60)
 print("\nМатрица коэффициентов A:")
 print_matrix(matrix)
 print("\nВектор правых частей b:")
 for i in range(len(b)):
     print(f"b{i + 1} = {b[i]:.2f}")
-print("\n" + "-" * 60)
 print("ПРЕОБРАЗОВАНИЕ К ВИДУ x = alpha*x + beta")
-print("-" * 60)
 
 print("\nПерестановка уравнений для улучшения сходимости...")
 matrix, b = rearrange_for_convergence(matrix, b)
@@ -188,24 +182,16 @@ if not converges:
 epsilon = 0.0001
 max_iterations = 1000
 
-print("\n" + "-" * 60)
 print("ИТЕРАЦИОННЫЙ ПРОЦЕСС")
-print("-" * 60)
 print(f"Точность (epsilon): {epsilon}")
 print(f"Максимальное число итераций: {max_iterations}")
 
 solution, iterations = simple_iteration_method(alpha, beta, epsilon, max_iterations)
 
-print("\n" + "-" * 60)
 print("ИТОГОВОЕ РЕШЕНИЕ:")
-print("-" * 60)
 for i in range(len(solution)):
     print(f"x{i + 1} = {solution[i]:.10f}")
 
 print(f"\nКоличество итераций: {iterations}")
 
 check_solution(matrix, b, solution)
-
-print("\n" + "-" * 60)
-print("КОНЕЦ РАБОТЫ")
-print("-" * 60)

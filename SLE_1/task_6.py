@@ -108,6 +108,7 @@ def qr_algorithm(A, max_iterations, eps):
             break
     else:
         print(f"Достигнуто максимальное число итераций: {max_iterations}")
+    print_matrix(A_current)
     return extract_eigenvalues(A_current, eps)
 
 if __name__ == "__main__":

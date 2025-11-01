@@ -31,30 +31,26 @@ def transform_to_iteration_form(matrix, b):
 
 def check_convergence(alpha):
     n = len(alpha)
-    max_sum = 0
+    max_row_sum = 0.0
+    max_col_sum = 0.0
 
     print("\nПроверка условия сходимости:")
-
     for i in range(n):
-        row_sum = 0
-        for j in range(n):
-            row_sum = row_sum + abs(alpha[i][j])
+        row_sum = sum(abs(alpha[i][j]) for j in range(n))
+        if row_sum > max_row_sum:
+            max_row_sum = row_sum
 
-        print(f"Строка {i + 1}: сумма |alpha_ij| = {row_sum:.6f}", end="")
+    print("\n▶ Проверка по столбцам (1-норма):")
+    for j in range(n):
+        col_sum = sum(abs(alpha[i][j]) for i in range(n))
+        if col_sum > max_col_sum:
+            max_col_sum = col_sum
 
-        if row_sum < max_sum:
-            print()
-        else:
-            max_sum = row_sum
-            print(f" <- максимум")
-
-    print(f"\nМаксимальная норма: {max_sum:.6f}")
-
-    if max_sum < 1:
-        print("Условие сходимости выполнено (норма < 1) ✓")
+    if max_row_sum < 1 or max_col_sum < 1:
+        print("\nУсловие сходимости выполнено (одна из норм < 1)")
         return True
     else:
-        print("Условие сходимости НЕ выполнено (норма >= 1) ✗")
+        print("\Условие сходимости не выполнено (все нормы >= 1)")
         return False
 
 
@@ -74,7 +70,7 @@ def simple_iteration_method(alpha, beta, epsilon, max_iterations):
         for i in range(n):
             sum_val = beta[i]
             for j in range(n):
-                sum_val = sum_val + alpha[i][j] * x[j]
+                sum_val += alpha[i][j] * x[j]
             x_new.append(sum_val)
 
         max_diff = 0

@@ -23,45 +23,42 @@ def d2f(x):
     except:
         return float('inf')
 
-# 1. Метод простой итерации
-def simple_iteration(x0, eps=0.0001, max_iter=1000):
-    """Метод простой итерации: x = φ(x)"""
+def simple_iteration(x0, eps=0.0001, max_iter=1000, lam=0.3):
+    """Метод простой итерации с параметром релаксации λ"""
     # Преобразуем: e^(x^2) + 3^(-x) - 5x^2 - 1 = 0
     # => x = ± sqrt((e^(x^2) + 3^(-x) - 1) / 5)
-    eps = eps/10
+    eps = eps / 10
     initial_sign = 1 if x0 >= 0 else -1
-    
+
     def phi(x):
         val = (math.exp(x**2) + 3**(-x) - 1) / 5
         if val < 0:
-            return x 
-        
+            return x
         return initial_sign * math.sqrt(val)
-    
-    # Проверка условия сходимости |φ'(x)| < 1 в окрестности x0
+
     def phi_derivative_approx(x, h=0.0001):
         return (phi(x + h) - phi(x - h)) / (2 * h)
-    
-    iterations = []
+
+    iterations = [x0]
     x = x0
-    iterations.append(x)
-    
-    # Проверяем условие сходимости
+
+    # Проверка условия сходимости
     phi_prime = phi_derivative_approx(x0)
     print(f"   |φ'(x0)| ≈ {abs(phi_prime):.6f}", end="")
     if abs(phi_prime) >= 1:
         print(" - НЕ выполнено условие сходимости!")
     else:
         print(" - условие сходимости выполнено")
-        
+
         for i in range(max_iter):
-            x_new = phi(x)
+            # Метод релаксации:
+            x_new = (1 - lam) * x + lam * phi(x)
             iterations.append(x_new)
-            
+
             if abs(x_new - x) < eps:
                 return x_new, i + 1, iterations
             x = x_new
-    
+
     return x, max_iter, iterations
 
 # 2. Метод Ньютона
@@ -394,12 +391,7 @@ def main():
         print("Отрезки с переменой знака не найдены!")
         return
     
-    # Выбираем положительный корень
-    print("\n" + "="*60)
-    print("РАБОТАЕМ С ПОЛОЖИТЕЛЬНЫМ КОРНЕМ")
-    print("="*60)
-    
-    
+    lam = float(input("Введите значение параметра релаксации λ (например, 0.5): "))
     
     for interval in intervals:
         a, b = interval
@@ -421,7 +413,7 @@ def main():
         # 1. Метод простой итерации
         print("\n1. МЕТОД ПРОСТОЙ ИТЕРАЦИИ")
         try:
-            root1, iter1, hist1 = simple_iteration(x0, eps)
+            root1, iter1, hist1 = simple_iteration(x0, eps, lam=lam)
             print(f"   Корень: x = {root1:.6f}")
             print(f"   Число итераций: {iter1}")
             print(f"   Проверка: f(x) = {f(root1):.10f}")

@@ -1,5 +1,12 @@
 import matplotlib.pyplot as plt
+
 import math
+
+def phi1(x1, x2):
+    val = 8 - x2**2
+    if val < 0:
+        return None
+    return math.sqrt(val) if x1 > 0 else -math.sqrt(val)
 
 def phi2(x1, x2):
     denom = 2*x1 + 3*x2
@@ -147,7 +154,7 @@ plt.axvline(0, color='black', linewidth=0.5)
 plt.show()
 
 # Начальные приближения (из графика)
-initial_guesses = [(2.5, 1.0), (-0.5, 2.8), (-0.5, -2.8), (2.5, -1.0)]
+initial_guesses = [(2.5, 1.0), (-0.5, 2.8), (-0.5, -2.8), (2.0, -2.0)]
 
 eps = 0.0001
 

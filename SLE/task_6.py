@@ -68,6 +68,36 @@ def qr_decomposition(A, eps):
         Q = multiply_matrices(Q, H)
     return Q, R
 
+def determinant(A):
+    n = len(A)
+    if n == 1:
+        return A[0][0]
+    if n == 2:
+        return A[0][0] * A[1][1] - A[0][1] * A[1][0]
+    det = 0
+    for j in range(n):
+        minor = [[A[i][k] for k in range(n) if k != j] for i in range(1, n)]
+        det += ((-1) ** j) * A[0][j] * determinant(minor)
+    return det
+
+def subtract_lambda_from_diagonal(A, lam):
+    n = len(A)
+    result = copy_matrix(A)
+    for i in range(n):
+        result[i][i] -= lam
+    return result
+
+def verify_eigenvalues(A, eigenvalues, eps):
+    print("\nПроверка собственных значений через характеристическое уравнение:")
+    print("det(A - λI) должен быть ≈ 0\n")
+    for i, lam in enumerate(eigenvalues, start=1):
+        if abs(lam.imag) < eps:
+            A_minus_lambda_I = subtract_lambda_from_diagonal(A, lam.real)
+            det_value = determinant(A_minus_lambda_I)
+            print(f"λ{i} = {lam.real:.6f}: det(A - λI) = {det_value:.2e}")
+        else:
+            print(f"λ{i} = {lam.real:.6f} + {lam.imag:.6f}i: (комплексное, пропущено)")
+
 def extract_eigenvalues(A, eps):
     n = len(A)
     eigenvalues = []
@@ -123,7 +153,7 @@ if __name__ == "__main__":
     print("Исходная матрица:")
     print_matrix(A)
 
-    eps = 0.0001
+    eps = 0.00000001
     eigenvalues = qr_algorithm(A, 1000, eps)
 
     print("\nСобственные значения:")
@@ -132,3 +162,5 @@ if __name__ == "__main__":
             print(f"λ{i} = {lam.real}")
         else:
             print(f"λ{i} = {lam.real} + {lam.imag}i")
+
+    verify_eigenvalues(A, eigenvalues, eps)

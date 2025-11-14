@@ -2,6 +2,8 @@
 # xi = | -2,27  | ―1,83  | -1,39. | -0,95. | -0,51. | -0,07. | 0,37.  | 0,81.   | 1,25    |
 # yi = | 3,2383 | 4,5458 | 3,1494 | 2,8715 | 0,8152 | 1,1248 | 0,4714 | ―1,0643 | ―0,1375 |  
 
+import matplotlib.pyplot as plt
+
 x = [-2.27, -1.83, -1.39, -0.95, -0.51, -0.07, 0.37, 0.81, 1.25]
 y = [3.2383, 4.5458, 3.1494, 2.8715, 0.8152, 1.1248, 0.4714, -1.0643, -0.1375]
 
@@ -72,3 +74,40 @@ coef_next = divided_diff(x4, y4)[4]
 error_3 = error_estimate(x3, x_star, coef_next)
 print(f"Значение в x* = {x_star}: N(x*) = {result_3:.4f}")
 print(f"Оценка погрешности: {error_3:.6f}")
+
+# Графики
+x_min, x_max = min(x), max(x)
+x_plot = [x_min + i * (x_max - x_min) / 199 for i in range(200)]
+y_plot_2 = [newton(x2, y2, xi) for xi in x_plot]
+y_plot_3 = [newton(x3, y3, xi) for xi in x_plot]
+
+plt.figure(figsize=(15, 5))
+
+plt.subplot(1, 3, 1)
+plt.plot(x_plot, y_plot_2, 'b-', label='Многочлен 2-й степени')
+plt.plot(x2, y2, 'ro', label='Узлы интерполяции')
+plt.plot(x_star, result_2, 'g*', markersize=12, label=f'x* = {x_star}')
+plt.grid(True)
+plt.legend()
+plt.title('Многочлен Ньютона 2-й степени')
+
+plt.subplot(1, 3, 2)
+plt.plot(x_plot, y_plot_3, 'r-', label='Многочлен 3-й степени')
+plt.plot(x3, y3, 'bo', label='Узлы интерполяции')
+plt.plot(x_star, result_3, 'g*', markersize=12, label=f'x* = {x_star}')
+plt.grid(True)
+plt.legend()
+plt.title('Многочлен Ньютона 3-й степени')
+
+plt.subplot(1, 3, 3)
+errors_2 = [abs(newton(x2, y2, xi) - newton(x, y, xi)) for xi in x_plot]
+errors_3 = [abs(newton(x3, y3, xi) - newton(x, y, xi)) for xi in x_plot]
+plt.plot(x_plot, errors_2, 'b-', label='Погрешность 2-й степени')
+plt.plot(x_plot, errors_3, 'r-', label='Погрешность 3-й степени')
+plt.grid(True)
+plt.legend()
+plt.title('Сравнение точности')
+plt.yscale('log')
+
+plt.tight_layout()
+plt.show()

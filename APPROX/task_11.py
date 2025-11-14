@@ -7,6 +7,8 @@
 # | 3 | 9.702 | 3.554 |
 # | 4 | 5.704 | 6.008 |
 
+import matplotlib.pyplot as plt
+
 data = [(5.267, 3.682), (3.928, 4.298), (9.702, 3.554), (5.704, 6.008)]
 data.sort()
 x = [p[0] for p in data]
@@ -60,3 +62,32 @@ print(f"a = {coef_a[idx]:.6f}")
 print(f"b = {coef_b[idx]:.6f}")
 print(f"c = {coef_c[idx]:.6f}")
 print(f"d = {coef_d[idx]:.6f}")
+
+# Графики
+plt.figure(figsize=(12, 5))
+
+plt.subplot(1, 2, 1)
+for i in range(n):
+    x_seg = [x[i] + j * h[i] / 50 for j in range(51)]
+    y_seg = [coef_a[i] + coef_b[i] * (xi - x[i]) + coef_c[i] * (xi - x[i])**2 + coef_d[i] * (xi - x[i])**3 for xi in x_seg]
+    plt.plot(x_seg, y_seg, 'b-')
+plt.plot(x, y, 'ro', label='Узлы интерполяции', markersize=8)
+plt.plot(x_star, S_x_star, 'g*', markersize=15, label=f'x* = {x_star}')
+plt.grid(True)
+plt.legend()
+plt.title('Кубический сплайн')
+
+plt.subplot(1, 2, 2)
+for i in range(n):
+    x_seg = [x[i] + j * h[i] / 50 for j in range(51)]
+    y_seg = [coef_a[i] + coef_b[i] * (xi - x[i]) + coef_c[i] * (xi - x[i])**2 + coef_d[i] * (xi - x[i])**3 for xi in x_seg]
+    plt.plot(x_seg, y_seg, 'b-', label=f'Отрезок {i+1}' if i < n else '')
+plt.plot(x, y, 'ro', markersize=8)
+for i in range(n):
+    plt.axvline(x[i], color='gray', linestyle='--', alpha=0.3)
+plt.axvline(x[n], color='gray', linestyle='--', alpha=0.3)
+plt.grid(True)
+plt.title('Сплайн по отрезкам')
+
+plt.tight_layout()
+plt.show()

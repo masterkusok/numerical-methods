@@ -23,41 +23,45 @@ def d2f(x):
     except:
         return float('inf')
 
-def simple_iteration(x0, eps=0.0001, max_iter=1000, lam=0.3):
+def simple_iteration(x0, a, b, eps=0.0001, max_iter=1000, lam=0.3):
     """Метод простой итерации с параметром релаксации λ"""
     # Преобразуем: e^(x^2) + 3^(-x) - 5x^2 - 1 = 0
-    # => x = ± sqrt((e^(x^2) + 3^(-x) - 1) / 5)
+    # => 5x^2 = e^(x^2) + 3^(-x) - 1
+    # => x = (e^(x^2) + 3^(-x) - 1) / (5x)
     eps = eps / 10
-    initial_sign = 1 if x0 >= 0 else -1
 
     def phi(x):
-        val = (math.exp(x**2) + 3**(-x) - 1) / 5
-        if val < 0:
+        if abs(x) < eps:
             return x
-        return initial_sign * math.sqrt(val)
+        return (math.exp(x**2) + 3**(-x) - 1) / (5 * x)
 
-    def phi_derivative_approx(x, h=0.0001):
-        return (phi(x + h) - phi(x - h)) / (2 * h)
+    def phi_derivative(x):
+        if abs(x) < 1e-10:
+            return 1
+        
+        # φ(x) = (e^(x²) + 3^(-x) - 1) / (5x)
+        # φ'(x) = [(2x·e^(x²) - 3^(-x)·ln(3))·5x - (e^(x²) + 3^(-x) - 1)·5] / (5x)²
+        numerator = (2*x*math.exp(x**2) - 3**(-x)*math.log(3)) * x - (math.exp(x**2) + 3**(-x) - 1)
+        return numerator / (5 * x**2)
+    
+    for x in range(int(a)*10, int(b)*10):
+        if abs(phi_derivative(x/10)) > 1.0:
+            print(" - НЕ выполнено условие сходимости!")
+    else:
+        print(" - условие сходимости выполнено")
 
     iterations = [x0]
     x = x0
 
-    # Проверка условия сходимости
-    phi_prime = phi_derivative_approx(x0)
-    print(f"   |φ'(x0)| ≈ {abs(phi_prime):.6f}", end="")
-    if abs(phi_prime) >= 1:
-        print(" - НЕ выполнено условие сходимости!")
-    else:
-        print(" - условие сходимости выполнено")
+    
 
-        for i in range(max_iter):
-            # Метод релаксации:
-            x_new = (1 - lam) * x + lam * phi(x)
-            iterations.append(x_new)
+    for i in range(max_iter):
+        x_new = phi(x)
+        iterations.append(x_new)
 
-            if abs(x_new - x) < eps:
-                return x_new, i + 1, iterations
-            x = x_new
+        if abs(x_new - x) < eps:
+            return x_new, i + 1, iterations
+        x = x_new
 
     return x, max_iter, iterations
 
@@ -412,7 +416,7 @@ def main():
         # 1. Метод простой итерации
         print("\n1. МЕТОД ПРОСТОЙ ИТЕРАЦИИ")
         try:
-            root1, iter1, hist1 = simple_iteration(x0, eps, lam=lam)
+            root1, iter1, hist1 = simple_iteration(x0, a, b, eps, lam=lam)
             print(f"   Корень: x = {root1:.6f}")
             print(f"   Число итераций: {iter1}")
             print(f"   Проверка: f(x) = {f(root1):.10f}")

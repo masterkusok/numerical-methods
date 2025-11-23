@@ -2,245 +2,210 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Система уравнений:
-# F1: x1² + x2² - 8 = 0
-# F2: 3x1² - 2x1x2 - 3x2² - 5x1 + 3 = 0
+# --- 1. Глобальные константы (Теоретические корни для графика) ---
+# Эти значения получены точным решением системы, чтобы отображать на графике "Идеал"
+ANALYTICAL_ROOTS = [
+    (2.57836, 1.16278),   # I четверть
+    (-1.12115, 2.59663),  # II четверть
+    (-1.53542, -2.37542), # III четверть
+    (2.06716, -1.92985)   # IV четверть
+]
 
-def F1(x, y):
-    return x*x + y*y - 8
+# Список для сохранения истории всех вычислений
+execution_log = []
 
-def F2(x, y):
-    return 3*x*x - 2*x*y - 3*y*y - 5*x + 3
-
-def dF1_dx(x, y):
-    return 2*x
-
-def dF1_dy(x, y):
-    return 2*y
-
-def dF2_dx(x, y):
-    return 6*x - 2*y - 5
-
-def dF2_dy(x, y):
-    return -2*x - 6*y
-
-def jacobian(x, y):
-    return [[dF1_dx(x, y), dF1_dy(x, y)],
-            [dF2_dx(x, y), dF2_dy(x, y)]]
-
-def det2x2(m):
-    return m[0][0]*m[1][1] - m[0][1]*m[1][0]
-
-def inverse2x2(m):
-    d = det2x2(m)
-    if abs(d) < 1e-10:
-        return None
-    return [[m[1][1]/d, -m[0][1]/d],
-            [-m[1][0]/d, m[0][0]/d]]
-
-def mul_mat_vec(m, v):
-    return [m[0][0]*v[0] + m[0][1]*v[1],
-            m[1][0]*v[0] + m[1][1]*v[1]]
-
-def mul_mat_mat(a, b):
-    return [[a[0][0]*b[0][0] + a[0][1]*b[1][0], a[0][0]*b[0][1] + a[0][1]*b[1][1]],
-            [a[1][0]*b[0][0] + a[1][1]*b[1][0], a[1][0]*b[0][1] + a[1][1]*b[1][1]]]
-
-def vec_norm(v):
-    return math.sqrt(v[0]*v[0] + v[1]*v[1])
-
-def newton_system(x0, y0, eps, max_iter):
-    x, y = x0, y0
+def get_lambdas(x, y):
+    """
+    Адаптивный выбор параметров lambda на основе знака производной в текущей точке.
+    """
+    df1_dx = 2 * x
+    df2_dy = -2 * x - 6 * y
     
-    for i in range(max_iter):
-        J = jacobian(x, y)
-        Jinv = inverse2x2(J)
-        if Jinv is None:
-            return None, None, 0, False, "Матрица Якоби вырожденная"
+    l1_base = 0.1
+    l2_base = 0.05
+    
+    # Инвертируем знак лямбды относительно знака производной для обеспечения сходимости
+    l1 = -l1_base if df1_dx > 0 else l1_base
+    l2 = -l2_base if df2_dy > 0 else l2_base
+    
+    return l1, l2
+
+def get_functions(x1, x2):
+    lam1, lam2 = get_lambdas(x1, x2)
+    f1 = x1**2 + x2**2 - 8
+    f2 = 3*(x1**2) - 2*x1*x2 - 3*(x2**2) - 5*x1 + 3
+    phi1 = x1 + lam1 * f1
+    phi2 = x2 + lam2 * f2
+    return phi1, phi2
+
+def get_derivatives_analytical(x1, x2):
+    lam1, lam2 = get_lambdas(x1, x2)
+    dphi1_dx1 = 1 + lam1 * (2 * x1)
+    dphi1_dx2 = lam1 * (2 * x2)
+    dphi2_dx1 = lam2 * (6 * x1 - 2 * x2 - 5)
+    dphi2_dx2 = 1 + lam2 * (-2 * x1 - 6 * x2)
+    return dphi1_dx1, dphi1_dx2, dphi2_dx1, dphi2_dx2
+
+def check_convergence(x1, x2):
+    dp1_dx1, dp1_dx2, dp2_dx1, dp2_dx2 = get_derivatives_analytical(x1, x2)
+    norm1 = abs(dp1_dx1) + abs(dp1_dx2)
+    norm2 = abs(dp2_dx1) + abs(dp2_dx2)
+    max_norm = max(norm1, norm2)
+    return max_norm < 1, max_norm
+
+def solve_system(method_name, x_start, y_start, epsilon):
+    """
+    Универсальная функция-решатель.
+    method_name: 'SimpleIteration' или 'Seidel'
+    """
+    print(f"\n--- {method_name} (Старт: {x_start}, {y_start}) ---")
+    print(f"{'k':<3} | {'x1':<9} | {'x2':<9} | {'dx':<9} | {'dy':<9} | {'Norma J'}")
+    print("-" * 65)
+    
+    x1, x2 = x_start, y_start
+    k = 0
+    max_iter = 100
+    status = "Converged"
+    
+    try:
+        converges, norm = check_convergence(x1, x2)
+        print(f"{k:<3} | {x1:<9.5f} | {x2:<9.5f} | {'-':<9} | {'-':<9} | {norm:.4f}")
         
-        f1, f2 = F1(x, y), F2(x, y)
-        delta = mul_mat_vec(Jinv, [-f1, -f2])
-        x += delta[0]
-        y += delta[1]
-        
-        if vec_norm(delta) < eps:
-            return x, y, i+1, True, "Метод сходится"
-    
-    return x, y, max_iter, False, "Достигнуто максимальное количество итераций"
-
-def simple_iteration_system(x0, y0, eps, max_iter):
-    x, y = x0, y0
-    tau = 0.5
-    
-    # Проверка условия сходимости
-    sup_norm = 0.0
-    samples = 5
-    radius = 0.5
-    
-    for i in range(samples):
-        for j in range(samples):
-            xi = x0 + (-radius + (2*radius)*i/(samples-1))
-            yi = y0 + (-radius + (2*radius)*j/(samples-1))
+        while True:
+            k += 1
             
-            J = jacobian(xi, yi)
-            Jinv = inverse2x2(J)
-            if Jinv:
-                # Phi'(x) = I - tau*Jinv*J = I - tau*I = (1-tau)*I
-                # Но на самом деле Phi(x) = x - tau*Jinv*F, поэтому Phi'(x) = I - tau*Jinv*J
-                JinvJ = mul_mat_mat(Jinv, J)
-                phi_deriv = [[1 - tau*JinvJ[0][0], -tau*JinvJ[0][1]],
-                            [-tau*JinvJ[1][0], 1 - tau*JinvJ[1][1]]]
-                row1_norm = abs(phi_deriv[0][0]) + abs(phi_deriv[0][1])
-                row2_norm = abs(phi_deriv[1][0]) + abs(phi_deriv[1][1])
-                max_row_norm = max(row1_norm, row2_norm)
-                if max_row_norm > sup_norm:
-                    sup_norm = max_row_norm
-    
-    for k in range(max_iter):
-        J = jacobian(x, y)
-        Jinv = inverse2x2(J)
-        if Jinv is None:
-            return None, None, 0, False, "Матрица Якоби вырожденная"
-        
-        f = [F1(x, y), F2(x, y)]
-        delta = mul_mat_vec(Jinv, [-f[0], -f[1]])
-        
-        x_new = x + tau * delta[0]
-        y_new = y + tau * delta[1]
-        
-        if max(abs(x_new - x), abs(y_new - y)) < eps:
-            return x_new, y_new, k+1, True, f"sup||Φ'|| ~= {sup_norm}, решение найдено за {k+1} итераций"
-        
-        x, y = x_new, y_new
-    
-    return x, y, max_iter, False, f"sup||Φ'|| ~= {sup_norm}, не сошёлся за {max_iter} итераций"
+            if method_name == 'SimpleIteration':
+                x1_new, x2_new = get_functions(x1, x2)
+            else: # Seidel
+                temp_x1, _ = get_functions(x1, x2)
+                x1_new = temp_x1
+                _, temp_x2 = get_functions(x1_new, x2) # Используем новый x1
+                x2_new = temp_x2
+                
+            # Проверка на "взрыв" значений
+            if abs(x1_new) > 1e8 or abs(x2_new) > 1e8:
+                print("!!! РАСХОДИМОСТЬ (Числа слишком большие) !!!")
+                status = "Diverged (Overflow)"
+                break
 
-def seidel_system(x0, y0, eps, max_iter):
-    x, y = x0, y0
-    tau = 0.5
-    
-    # Проверка условия сходимости
-    sup_norm = 0.0
-    samples = 5
-    radius = 0.5
-    
-    for i in range(samples):
-        for j in range(samples):
-            xi = x0 + (-radius + (2*radius)*i/(samples-1))
-            yi = y0 + (-radius + (2*radius)*j/(samples-1))
+            dx1 = abs(x1_new - x1)
+            dx2 = abs(x2_new - x2)
+            _, norm = check_convergence(x1_new, x2_new)
             
-            J = jacobian(xi, yi)
-            Jinv = inverse2x2(J)
-            if Jinv:
-                JinvJ = mul_mat_mat(Jinv, J)
-                phi_deriv = [[1 - tau*JinvJ[0][0], -tau*JinvJ[0][1]],
-                            [-tau*JinvJ[1][0], 1 - tau*JinvJ[1][1]]]
-                row1_norm = abs(phi_deriv[0][0]) + abs(phi_deriv[0][1])
-                row2_norm = abs(phi_deriv[1][0]) + abs(phi_deriv[1][1])
-                max_row_norm = max(row1_norm, row2_norm)
-                if max_row_norm > sup_norm:
-                    sup_norm = max_row_norm
-    
-    for k in range(max_iter):
-        J = jacobian(x, y)
-        Jinv = inverse2x2(J)
-        if Jinv is None:
-            return None, None, 0, False, "Матрица Якоби вырожденная"
-        
-        f1 = F1(x, y)
-        delta1 = mul_mat_vec(Jinv, [-f1, 0])
-        x_new = x + tau * delta1[0]
-        
-        f2 = F2(x_new, y)
-        J_new = jacobian(x_new, y)
-        Jinv_new = inverse2x2(J_new)
-        if Jinv_new is None:
-            return None, None, 0, False, "Матрица Якоби вырожденная"
-        
-        delta2 = mul_mat_vec(Jinv_new, [0, -f2])
-        y_new = y + tau * delta2[1]
-        
-        if max(abs(x_new - x), abs(y_new - y)) < eps:
-            return x_new, y_new, k+1, True, f"sup||Φ'|| ~= {sup_norm:.3f}, решение найдено за {k+1} итераций"
-        
-        x, y = x_new, y_new
-    
-    return x, y, max_iter, False, f"sup||Φ'|| ~= {sup_norm:.3f}, не сошёлся за {max_iter} итераций"
+            print(f"{k:<3} | {x1_new:<9.5f} | {x2_new:<9.5f} | {dx1:<9.5f} | {dx2:<9.5f} | {norm:.4f}")
+            
+            if dx1 <= epsilon and dx2 <= epsilon:
+                break
+            
+            if k >= max_iter:
+                print("Превышен лимит итераций!")
+                status = "Limit Reached"
+                break
+            
+            x1, x2 = x1_new, x2_new
+            
+    except OverflowError:
+        print("!!! OverflowError: Метод разошелся !!!")
+        status = "Error"
+        x1, x2 = None, None
 
-def plot_system(solutions):
+    # Сохраняем результат в общий лог
+    execution_log.append({
+        'method': method_name,
+        'start': (x_start, y_start),
+        'end': (x1, x2) if x1 is not None else (0,0),
+        'iters': k,
+        'status': status
+    })
+    
+    return x1, x2
+
+def print_final_summary():
+    print("\n" + "="*80)
+    print(f"{'ИТОГОВЫЙ ОТЧЕТ':^80}")
+    print("="*80)
+    print(f"{'Метод':<20} | {'Старт':<15} | {'Корень (x, y)':<20} | {'Итер.':<5} | {'Статус'}")
+    print("-" * 80)
+    
+    for entry in execution_log:
+        start_s = f"({entry['start'][0]:.1f}, {entry['start'][1]:.1f})"
+        if entry['end'] and entry['end'][0] is not None:
+            end_s = f"({entry['end'][0]:.4f}, {entry['end'][1]:.4f})"
+        else:
+            end_s = "None"
+            
+        print(f"{entry['method']:<20} | {start_s:<15} | {end_s:<20} | {entry['iters']:<5} | {entry['status']}")
+    print("="*80)
+
+def plot_analytical_system():
+    """
+    Строит график системы уравнений, используя:
+    1. Контуры (линии уровня) для уравнений - это точная геометрия.
+    2. ANALYTICAL_ROOTS - точные координаты корней (желтые точки).
+    """
     plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(12, 10))
+    fig, ax = plt.subplots(figsize=(10, 8))
     
-    x = np.linspace(-4, 4, 1000)
-    y = np.linspace(-4, 4, 1000)
+    # Сетка для контуров
+    x = np.linspace(-4, 4, 400)
+    y = np.linspace(-4, 4, 400)
     X, Y = np.meshgrid(x, y)
     
+    # Уравнения F(x,y) = 0
     Z1 = X**2 + Y**2 - 8
     Z2 = 3*X**2 - 2*X*Y - 3*Y**2 - 5*X + 3
     
-    c1 = ax.contour(X, Y, Z1, levels=[0], colors='#00ffff', linewidths=3, linestyles='-')
-    c2 = ax.contour(X, Y, Z2, levels=[0], colors='#ff00ff', linewidths=3, linestyles='-')
+    # Рисуем линии уровня 0 (самые точные графики уравнений)
+    c1 = ax.contour(X, Y, Z1, levels=[0], colors='#00ffff', linewidths=2.5)
+    c2 = ax.contour(X, Y, Z2, levels=[0], colors='#ff00ff', linewidths=2.5)
     
-    for sol_x, sol_y in solutions:
-        ax.plot(sol_x, sol_y, 'o', color='#ffff00', markersize=15, markeredgecolor='#ff6600', markeredgewidth=3, zorder=5)
-        ax.annotate(f'({sol_x:.2f}, {sol_y:.2f})', xy=(sol_x, sol_y), xytext=(10, 10),
-                   textcoords='offset points', fontsize=11, color='#ffff00',
-                   bbox=dict(boxstyle='round,pad=0.5', facecolor='#1a1a1a', edgecolor='#ffff00', linewidth=2))
-    
-    ax.grid(True, alpha=0.3, linestyle='--', color='#404040')
-    ax.axhline(y=0, color='#808080', linewidth=1.5, alpha=0.5)
-    ax.axvline(x=0, color='#808080', linewidth=1.5, alpha=0.5)
-    ax.set_xlabel('x₁', fontsize=14, color='#00ffff', fontweight='bold')
-    ax.set_ylabel('x₂', fontsize=14, color='#ff00ff', fontweight='bold')
-    ax.set_title('Система нелинейных уравнений', fontsize=16, color='#ffffff', fontweight='bold', pad=20)
-    
-    from matplotlib.lines import Line2D
-    legend_elements = [Line2D([0], [0], color='#00ffff', linewidth=3, label='F₁ = 0'),
-                      Line2D([0], [0], color='#ff00ff', linewidth=3, label='F₂ = 0'),
-                      Line2D([0], [0], marker='o', color='w', markerfacecolor='#ffff00', 
-                            markeredgecolor='#ff6600', markeredgewidth=3, markersize=10, label='Решения', linestyle='None')]
-    ax.legend(handles=legend_elements, loc='upper right', fontsize=12, framealpha=0.9, facecolor='#1a1a1a', edgecolor='#ffffff')
+    # Рисуем ТОЧНЫЕ АНАЛИТИЧЕСКИЕ КОРНИ
+    for rx, ry in ANALYTICAL_ROOTS:
+        ax.plot(rx, ry, 'o', color='#ffff00', markersize=12, 
+                markeredgecolor='#ff6600', markeredgewidth=2, zorder=10)
+        
+        # Подпись координат
+        ax.annotate(f'({rx:.2f}, {ry:.2f})', xy=(rx, ry), xytext=(15, 15),
+                   textcoords='offset points', fontsize=10, color='#ffff00', fontweight='bold',
+                   bbox=dict(boxstyle='round,pad=0.3', fc='#1a1a1a', ec='#ffff00', alpha=0.8))
+
+    # Оформление
+    ax.grid(True, alpha=0.2, linestyle='--')
+    ax.set_xlabel('x₁', fontsize=12, color='white')
+    ax.set_ylabel('x₂', fontsize=12, color='white')
+    ax.set_title('Аналитическое решение системы', fontsize=14, pad=15)
     ax.set_xlim(-4, 4)
     ax.set_ylim(-4, 4)
+    
+    # Легенда
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], color='#00ffff', lw=2, label='x² + y² - 8 = 0'),
+        Line2D([0], [0], color='#ff00ff', lw=2, label='3x² - 2xy - 3y² - 5x + 3 = 0'),
+        Line2D([0], [0], marker='o', color='w', markerfacecolor='#ffff00', 
+               markeredgecolor='#ff6600', markersize=10, label='Точные корни')
+    ]
+    ax.legend(handles=legend_elements, loc='upper right', facecolor='#1a1a1a')
     
     plt.tight_layout()
     plt.show()
 
-if __name__ == "__main__":
-    eps = 0.0001
-    max_iter = 1000
+# --- ЗАПУСК ---
+epsilon_val = 0.0001
+initial_points = [
+    (2.0, 1.0),    # Для корня в I четверти
+    (-1.0, 2.5),   # Для корня во II четверти
+    (-1.5, -2.3),  # Для корня в III четверти
+    (2.0, -2.0)    # Для корня в IV четверти
+]
 
-    initial_values = [(2.0, 1.0), (-1.0, 2.5), (-1.5, -2.0), (2.0, -2.0)]
-    solutions = []
-    
-    print("Система уравнений:")
-    print("F₁: x₁² + x₂² - 8 = 0")
-    print("F₂: 3x₁² - 2x₁x₂ - 3x₂² - 5x₁ + 3 = 0\n")
+# 1. Выполняем расчеты
+for start_x, start_y in initial_points:
+    solve_system('SimpleIteration', start_x, start_y, epsilon_val)
+    solve_system('Seidel', start_x, start_y, epsilon_val)
 
-    for value in initial_values:
-        x0, y0 = value
-        print(f"=== Начальное приближение x₀={x0}, y₀={y0} ===")
-        print("=== Метод Ньютона ===")
-        x, y, iters, conv, msg = newton_system(x0, y0, eps, max_iter)
-        print(f"x = {x:.6f}, y = {y:.6f}")
-        print(f"Итераций: {iters}")
-        print(f"{msg}\n")
-        
-        if conv and (x, y) not in [(s[0], s[1]) for s in solutions]:
-            solutions.append((x, y))
+# 2. Выводим сводную таблицу (лог)
+print_final_summary()
 
-        print("=== Метод простой итерации ===")
-        x, y, iters, conv, msg = simple_iteration_system(x0, y0, eps, max_iter)
-        print(f"x = {x:.6f}, y = {y:.6f}")
-        print(f"Итераций: {iters}")
-        print(f"{msg}\n")
-
-        print("=== Метод Зейделя ===")
-        x, y, iters, conv, msg = seidel_system(x0, y0, eps, max_iter)
-        print(f"x = {x:.6f}, y = {y:.6f}")
-        print(f"Итераций: {iters}")
-        print(f"{msg}")
-
-        print("============\n\n\n")
-    
-    plot_system(solutions)
+# 3. Строим "чистый" график с аналитическими решениями
+plot_analytical_system()

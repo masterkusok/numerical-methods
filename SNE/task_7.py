@@ -396,7 +396,6 @@ def main():
     for interval in intervals:
         a, b = interval
         x0 = (a + b) / 2
-        print("\n\n\n\n\n\n" + str(x0) + "\n\n\n\n\n\n\n\n")
 
         print("\n\n" + "="*60)
         print(f"ДЛЯ ОТРЕЗКА: [{a}; {b}]")

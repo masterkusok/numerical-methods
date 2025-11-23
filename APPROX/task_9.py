@@ -11,11 +11,11 @@ def lagrange(x_data, y_data, x_val):
     result = 0
     n = len(x_data)
     for i in range(n):
-        term = y_data[i]
+        l = y_data[i]
         for j in range(n):
             if i != j:
-                term *= (x_val - x_data[j]) / (x_data[i] - x_data[j])
-        result += term
+                l *= (x_val - x_data[j]) / (x_data[i] - x_data[j])
+        result += l
     return result
 
 x_star = 0.176

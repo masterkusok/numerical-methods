@@ -1,303 +1,246 @@
-import matplotlib.pyplot as plt
-
 import math
-
-def phi1(x1, x2):
-    val = 8 - x2**2
-    if val < 0:
-        return None
-    return math.sqrt(val) if x1 > 0 else -math.sqrt(val)
-
-def phi2(x1, x2):
-    denom = 2*x1 + 3*x2
-    if abs(denom) < 1e-10:
-        return None
-    return (3*x1**2 - 5*x1 + 3) / denom
-
-# Якобиан для метода простой итерации
-def jacobian_simple(x1, x2):
-    val = 8 - x2**2
-    if val <= 0:
-        return None
-
-    dphi1_dx1 = 0
-    dphi1_dx2 = -x2 / math.sqrt(val)
-
-    denom = 2*x1 + 3*x2
-    if abs(denom) < 1e-10:
-        denom = 1e-10
-
-    num = 3*x1**2 - 5*x1 + 3
-    dphi2_dx1 = ((6*x1 - 5)*(2*x1 + 3*x2) - 2*num) / (denom**2)
-    dphi2_dx2 = -3*num / (denom**2)
-
-    return [[dphi1_dx1, dphi1_dx2],
-            [dphi2_dx1, dphi2_dx2]]
-
-# Якобиан для метода Зейделя
-def jacobian_seidel(x1, x2):
-    val = 8 - x2**2
-    if val <= 0:
-        return None
-
-    # φ1 такая же
-    dphi1_dx1 = 0
-    dphi1_dx2 = -x2 / math.sqrt(val)
-
-    # Для Зейделя φ2 зависит от φ1(x1, x2)
-    phi1_val = phi1(x1, x2)
-    if phi1_val is None:
-        return None
-
-    denom = 2*phi1_val + 3*x2
-    if abs(denom) < 1e-10:
-        denom = 1e-10
-
-    num = 3*phi1_val**2 - 5*phi1_val + 3
-    dphi2_dphi1 = ((6*phi1_val - 5)*(2*phi1_val + 3*x2) - 2*num) / (denom**2)
-    dphi2_dx2 = -3*num / (denom**2)
-
-    # dφ2/dx1 = dφ2/dφ1 * dφ1/dx1  (а dφ1/dx1 = 0)
-    dphi2_dx1 = dphi2_dphi1 * 0
-    # dφ2/dx2 = dφ2/dφ1 * dφ1/dx2 + ∂φ2/∂x2
-    dphi2_dx2 = dphi2_dphi1 * dphi1_dx2 + dphi2_dx2
-
-    return [[dphi1_dx1, dphi1_dx2],
-            [dphi2_dx1, dphi2_dx2]]
-
-# Общая функция проверки
-def check_convergence(method, x1, x2):
-    if method == "simple":
-        J = jacobian_simple(x1, x2)
-        title = "Метод простой итерации"
-    elif method == "seidel":
-        J = jacobian_seidel(x1, x2)
-        title = "Метод Зейделя"
-    else:
-        raise ValueError("method должен быть 'simple' или 'seidel'")
-
-    if J is None:
-        print(f"{title}: невозможно вычислить Якобиан в точке ({x1}, {x2})")
-        return
-
-    norm_inf = max(abs(J[0][0]) + abs(J[0][1]),
-                   abs(J[1][0]) + abs(J[1][1]))
-
-    print(f"\n{title} — проверка сходимости в точке ({x1:.2f}, {x2:.2f})")
-    print("Якобиан Φ(x):")
-    for row in J:
-        print(f"  {row}")
-    print(f"‖JΦ(x)‖∞ = {norm_inf:.4f}")
-
-    if norm_inf < 1:
-        print("✅ Условие сходимости выполнено\n")
-    else:
-        print("❌ Условие сходимости не выполнено\n")
-
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Система уравнений:
-# x1^2 + x2^2 = 8
-# 3x1^2 - 2x1x2 - 3x2^2 - 5x1 + 3 = 0
+# F1: x1² + x2² - 8 = 0
+# F2: 3x1² - 2x1x2 - 3x2² - 5x1 + 3 = 0
 
-def f1(x1, x2):
-    return x1**2 + x2**2 - 8
+def F1(x, y):
+    return x*x + y*y - 8
 
-def f2(x1, x2):
-    return 3*x1**2 - 2*x1*x2 - 3*x2**2 - 5*x1 + 3
+def F2(x, y):
+    return 3*x*x - 2*x*y - 3*y*y - 5*x + 3
 
-# Эквивалентные функции для графиков
-def x2_from_f1_pos(x1):
-    val = 8 - x1**2
-    return val**0.5 if val >= 0 else None
+def dF1_dx(x, y):
+    return 2*x
 
-def x2_from_f1_neg(x1):
-    val = 8 - x1**2
-    return -val**0.5 if val >= 0 else None
+def dF1_dy(x, y):
+    return 2*y
 
-def x2_from_f2(x1):
-    # 3x1^2 - 2x1x2 - 3x2^2 - 5x1 + 3 = 0
-    # -3x2^2 - 2x1x2 + 3x1^2 - 5x1 + 3 = 0
-    # 3x2^2 + 2x1x2 - 3x1^2 + 5x1 - 3 = 0
-    a = 3
-    b = 2*x1
-    c = -3*x1**2 + 5*x1 - 3
-    d = b**2 - 4*a*c
-    if d < 0:
-        return None, None
-    return (-b + d**0.5)/(2*a), (-b - d**0.5)/(2*a)
+def dF2_dx(x, y):
+    return 6*x - 2*y - 5
 
-# Построение графиков
-x1_vals = [i*0.01 for i in range(-300, 301)]
-x2_pos = [x2_from_f1_pos(x1) for x1 in x1_vals]
-x2_neg = [x2_from_f1_neg(x1) for x1 in x1_vals]
-x2_f2_pos = []
-x2_f2_neg = []
-for x1 in x1_vals:
-    y1, y2 = x2_from_f2(x1)
-    x2_f2_pos.append(y1)
-    x2_f2_neg.append(y2)
+def dF2_dy(x, y):
+    return -2*x - 6*y
 
-plt.figure(figsize=(10, 8))
-plt.plot(x1_vals, x2_pos, 'b-', label='x1² + x2² = 8 (верх)')
-plt.plot(x1_vals, x2_neg, 'b--', label='x1² + x2² = 8 (низ)')
-plt.plot(x1_vals, x2_f2_pos, 'r-', label='f2 = 0 (ветвь 1)')
-plt.plot(x1_vals, x2_f2_neg, 'r--', label='f2 = 0 (ветвь 2)')
-plt.grid(True)
-plt.xlabel('x1')
-plt.ylabel('x2')
-plt.legend()
-plt.title('Графики эквивалентных функций')
-plt.xlim(-3, 3)
-plt.ylim(-3, 3)
-plt.axhline(0, color='black', linewidth=0.5)
-plt.axvline(0, color='black', linewidth=0.5)
-plt.show()
+def jacobian(x, y):
+    return [[dF1_dx(x, y), dF1_dy(x, y)],
+            [dF2_dx(x, y), dF2_dy(x, y)]]
 
-# Начальные приближения (из графика)
-initial_guesses = [(2.5, 1.0), (-0.5, 2.8), (-0.5, -2.8), (2.0, -2.0)]
+def det2x2(m):
+    return m[0][0]*m[1][1] - m[0][1]*m[1][0]
 
-eps = 0.0001
+def inverse2x2(m):
+    d = det2x2(m)
+    if abs(d) < 1e-10:
+        return None
+    return [[m[1][1]/d, -m[0][1]/d],
+            [-m[1][0]/d, m[0][0]/d]]
 
-# Метод Ньютона
-def newton_method(x1_0, x2_0, eps):
-    x1, x2 = x1_0, x2_0
-    iterations = 0
-    print(f"\nМетод Ньютона, начальное приближение: ({x1_0}, {x2_0})")
+def mul_mat_vec(m, v):
+    return [m[0][0]*v[0] + m[0][1]*v[1],
+            m[1][0]*v[0] + m[1][1]*v[1]]
+
+def mul_mat_mat(a, b):
+    return [[a[0][0]*b[0][0] + a[0][1]*b[1][0], a[0][0]*b[0][1] + a[0][1]*b[1][1]],
+            [a[1][0]*b[0][0] + a[1][1]*b[1][0], a[1][0]*b[0][1] + a[1][1]*b[1][1]]]
+
+def vec_norm(v):
+    return math.sqrt(v[0]*v[0] + v[1]*v[1])
+
+def newton_system(x0, y0, eps, max_iter):
+    x, y = x0, y0
     
-    while True:
-        iterations += 1
-        f1_val = f1(x1, x2)
-        f2_val = f2(x1, x2)
+    for i in range(max_iter):
+        J = jacobian(x, y)
+        Jinv = inverse2x2(J)
+        if Jinv is None:
+            return None, None, 0, False, "Матрица Якоби вырожденная"
         
-        # Якобиан
-        df1_dx1 = 2*x1
-        df1_dx2 = 2*x2
-        df2_dx1 = 6*x1 - 2*x2 - 5
-        df2_dx2 = -2*x1 - 6*x2
+        f1, f2 = F1(x, y), F2(x, y)
+        delta = mul_mat_vec(Jinv, [-f1, -f2])
+        x += delta[0]
+        y += delta[1]
         
-        det = df1_dx1*df2_dx2 - df1_dx2*df2_dx1
-        if abs(det) < 1e-10:
-            print("Определитель близок к нулю")
-            return None, None, iterations
-        
-        dx1 = (f1_val*df2_dx2 - f2_val*df1_dx2) / det
-        dx2 = (f2_val*df1_dx1 - f1_val*df2_dx1) / det
-        
-        x1_new = x1 - dx1
-        x2_new = x2 - dx2
-        
-        if abs(x1_new - x1) < eps and abs(x2_new - x2) < eps:
-            x1, x2 = x1_new, x2_new
-            break
-        
-        x1, x2 = x1_new, x2_new
-        
-        if iterations > 1000:
-            print("Превышено максимальное число итераций")
-            return None, None, iterations
+        if vec_norm(delta) < eps:
+            return x, y, i+1, True, "Метод сходится"
     
-    print(f"Решение: x1 = {x1:.4f}, x2 = {x2:.4f}")
-    print(f"Проверка: f1 = {f1(x1, x2):.6f}, f2 = {f2(x1, x2):.6f}")
-    print(f"Итераций: {iterations}")
-    return x1, x2, iterations
+    return x, y, max_iter, False, "Достигнуто максимальное количество итераций"
 
-# Метод простой итерации
-def simple_iteration(x1_0, x2_0, eps):
-    print(f"\nМетод простой итерации, начальное приближение: ({x1_0}, {x2_0})")
-    # Используем релаксацию: x_new = x_old + tau * (phi(x) - x_old)
-    # x1 = x1 + tau * (sqrt(8 - x2^2) - x1)
-    # x2 = x2 + tau * ((3x1^2 - 5x1 + 3) / (2x1 + 3x2) - x2)
+def simple_iteration_system(x0, y0, eps, max_iter):
+    x, y = x0, y0
+    tau = 0.5
     
-    print("Проверка сходимости:")
-    check_convergence("simple", x1_0, x2_0)
+    # Проверка условия сходимости
+    sup_norm = 0.0
+    samples = 5
+    radius = 0.5
+    
+    for i in range(samples):
+        for j in range(samples):
+            xi = x0 + (-radius + (2*radius)*i/(samples-1))
+            yi = y0 + (-radius + (2*radius)*j/(samples-1))
+            
+            J = jacobian(xi, yi)
+            Jinv = inverse2x2(J)
+            if Jinv:
+                # Phi'(x) = I - tau*Jinv*J = I - tau*I = (1-tau)*I
+                # Но на самом деле Phi(x) = x - tau*Jinv*F, поэтому Phi'(x) = I - tau*Jinv*J
+                JinvJ = mul_mat_mat(Jinv, J)
+                phi_deriv = [[1 - tau*JinvJ[0][0], -tau*JinvJ[0][1]],
+                            [-tau*JinvJ[1][0], 1 - tau*JinvJ[1][1]]]
+                row1_norm = abs(phi_deriv[0][0]) + abs(phi_deriv[0][1])
+                row2_norm = abs(phi_deriv[1][0]) + abs(phi_deriv[1][1])
+                max_row_norm = max(row1_norm, row2_norm)
+                if max_row_norm > sup_norm:
+                    sup_norm = max_row_norm
+    
+    for k in range(max_iter):
+        J = jacobian(x, y)
+        Jinv = inverse2x2(J)
+        if Jinv is None:
+            return None, None, 0, False, "Матрица Якоби вырожденная"
+        
+        f = [F1(x, y), F2(x, y)]
+        delta = mul_mat_vec(Jinv, [-f[0], -f[1]])
+        
+        x_new = x + tau * delta[0]
+        y_new = y + tau * delta[1]
+        
+        if max(abs(x_new - x), abs(y_new - y)) < eps:
+            return x_new, y_new, k+1, True, f"sup||Φ'|| ~= {sup_norm}, решение найдено за {k+1} итераций"
+        
+        x, y = x_new, y_new
+    
+    return x, y, max_iter, False, f"sup||Φ'|| ~= {sup_norm}, не сошёлся за {max_iter} итераций"
 
-    x1, x2 = x1_0, x2_0
-    iterations = 0
-    tau = 0.3
+def seidel_system(x0, y0, eps, max_iter):
+    x, y = x0, y0
+    tau = 0.5
     
-    while True:
-        iterations += 1
-        
-        val = 8 - x2**2
-        if val < 0:
-            val = 0
-        phi1 = val**0.5 if x1 > 0 else -val**0.5
-        
-        denom = 2*x1 + 3*x2
-        if abs(denom) < 1e-10:
-            denom = 1e-10
-        phi2 = (3*x1**2 - 5*x1 + 3) / denom
-        
-        x1_new = x1 + tau * (phi1 - x1)
-        x2_new = x2 + tau * (phi2 - x2)
-        
-        if abs(x1_new - x1) < eps and abs(x2_new - x2) < eps:
-            x1, x2 = x1_new, x2_new
-            break
-        
-        x1, x2 = x1_new, x2_new
-        
-        if iterations > 10000:
-            print("Превышено максимальное число итераций")
-            return None, None, iterations
+    # Проверка условия сходимости
+    sup_norm = 0.0
+    samples = 5
+    radius = 0.5
     
-    print(f"Решение: x1 = {x1:.4f}, x2 = {x2:.4f}")
-    print(f"Проверка: f1 = {f1(x1, x2):.6f}, f2 = {f2(x1, x2):.6f}")
-    print(f"Итераций: {iterations}")
-    return x1, x2, iterations
+    for i in range(samples):
+        for j in range(samples):
+            xi = x0 + (-radius + (2*radius)*i/(samples-1))
+            yi = y0 + (-radius + (2*radius)*j/(samples-1))
+            
+            J = jacobian(xi, yi)
+            Jinv = inverse2x2(J)
+            if Jinv:
+                JinvJ = mul_mat_mat(Jinv, J)
+                phi_deriv = [[1 - tau*JinvJ[0][0], -tau*JinvJ[0][1]],
+                            [-tau*JinvJ[1][0], 1 - tau*JinvJ[1][1]]]
+                row1_norm = abs(phi_deriv[0][0]) + abs(phi_deriv[0][1])
+                row2_norm = abs(phi_deriv[1][0]) + abs(phi_deriv[1][1])
+                max_row_norm = max(row1_norm, row2_norm)
+                if max_row_norm > sup_norm:
+                    sup_norm = max_row_norm
+    
+    for k in range(max_iter):
+        J = jacobian(x, y)
+        Jinv = inverse2x2(J)
+        if Jinv is None:
+            return None, None, 0, False, "Матрица Якоби вырожденная"
+        
+        f1 = F1(x, y)
+        delta1 = mul_mat_vec(Jinv, [-f1, 0])
+        x_new = x + tau * delta1[0]
+        
+        f2 = F2(x_new, y)
+        J_new = jacobian(x_new, y)
+        Jinv_new = inverse2x2(J_new)
+        if Jinv_new is None:
+            return None, None, 0, False, "Матрица Якоби вырожденная"
+        
+        delta2 = mul_mat_vec(Jinv_new, [0, -f2])
+        y_new = y + tau * delta2[1]
+        
+        if max(abs(x_new - x), abs(y_new - y)) < eps:
+            return x_new, y_new, k+1, True, f"sup||Φ'|| ~= {sup_norm:.3f}, решение найдено за {k+1} итераций"
+        
+        x, y = x_new, y_new
+    
+    return x, y, max_iter, False, f"sup||Φ'|| ~= {sup_norm:.3f}, не сошёлся за {max_iter} итераций"
 
-# Метод Зейделя
-def seidel_method(x1_0, x2_0, eps):
-    print(f"\nМетод Зейделя, начальное приближение: ({x1_0}, {x2_0})")
-    # Используем релаксацию с обновлением x1, затем сразу используем новое x1
-    # для x2
+def plot_system(solutions):
+    plt.style.use('dark_background')
+    fig, ax = plt.subplots(figsize=(12, 10))
     
-    print("Проверка сходимости:")
-    check_convergence("seidel", x1_0, x2_0)
+    x = np.linspace(-4, 4, 1000)
+    y = np.linspace(-4, 4, 1000)
+    X, Y = np.meshgrid(x, y)
     
-    x1, x2 = x1_0, x2_0
-    iterations = 0
-    tau = 0.3
+    Z1 = X**2 + Y**2 - 8
+    Z2 = 3*X**2 - 2*X*Y - 3*Y**2 - 5*X + 3
     
-    while True:
-        iterations += 1
-        
-        val = 8 - x2**2
-        if val < 0:
-            val = 0
-        phi1 = val**0.5 if x1 > 0 else -val**0.5
-        x1_new = x1 + tau * (phi1 - x1)
-        
-        denom = 2*x1_new + 3*x2
-        if abs(denom) < 1e-10:
-            denom = 1e-10
-        phi2 = (3*x1_new**2 - 5*x1_new + 3) / denom
-        x2_new = x2 + tau * (phi2 - x2)
-        
-        if abs(x1_new - x1) < eps and abs(x2_new - x2) < eps:
-            x1, x2 = x1_new, x2_new
-            break
-        
-        x1, x2 = x1_new, x2_new
-        
-        if iterations > 10000:
-            print("Превышено максимальное число итераций")
-            return None, None, iterations
+    c1 = ax.contour(X, Y, Z1, levels=[0], colors='#00ffff', linewidths=3, linestyles='-')
+    c2 = ax.contour(X, Y, Z2, levels=[0], colors='#ff00ff', linewidths=3, linestyles='-')
     
-    print(f"Решение: x1 = {x1:.4f}, x2 = {x2:.4f}")
-    print(f"Проверка: f1 = {f1(x1, x2):.6f}, f2 = {f2(x1, x2):.6f}")
-    print(f"Итераций: {iterations}")
-    return x1, x2, iterations
+    for sol_x, sol_y in solutions:
+        ax.plot(sol_x, sol_y, 'o', color='#ffff00', markersize=15, markeredgecolor='#ff6600', markeredgewidth=3, zorder=5)
+        ax.annotate(f'({sol_x:.2f}, {sol_y:.2f})', xy=(sol_x, sol_y), xytext=(10, 10),
+                   textcoords='offset points', fontsize=11, color='#ffff00',
+                   bbox=dict(boxstyle='round,pad=0.5', facecolor='#1a1a1a', edgecolor='#ffff00', linewidth=2))
+    
+    ax.grid(True, alpha=0.3, linestyle='--', color='#404040')
+    ax.axhline(y=0, color='#808080', linewidth=1.5, alpha=0.5)
+    ax.axvline(x=0, color='#808080', linewidth=1.5, alpha=0.5)
+    ax.set_xlabel('x₁', fontsize=14, color='#00ffff', fontweight='bold')
+    ax.set_ylabel('x₂', fontsize=14, color='#ff00ff', fontweight='bold')
+    ax.set_title('Система нелинейных уравнений', fontsize=16, color='#ffffff', fontweight='bold', pad=20)
+    
+    from matplotlib.lines import Line2D
+    legend_elements = [Line2D([0], [0], color='#00ffff', linewidth=3, label='F₁ = 0'),
+                      Line2D([0], [0], color='#ff00ff', linewidth=3, label='F₂ = 0'),
+                      Line2D([0], [0], marker='o', color='w', markerfacecolor='#ffff00', 
+                            markeredgecolor='#ff6600', markeredgewidth=3, markersize=10, label='Решения', linestyle='None')]
+    ax.legend(handles=legend_elements, loc='upper right', fontsize=12, framealpha=0.9, facecolor='#1a1a1a', edgecolor='#ffffff')
+    ax.set_xlim(-4, 4)
+    ax.set_ylim(-4, 4)
+    
+    plt.tight_layout()
+    plt.show()
 
-# Решение для всех начальных приближений
-print("="*60)
-print("РЕШЕНИЕ СИСТЕМЫ НЕЛИНЕЙНЫХ УРАВНЕНИЙ")
-print("="*60)
+if __name__ == "__main__":
+    eps = 0.0001
+    max_iter = 1000
 
-for guess in initial_guesses:
-    print("\n" + "="*60)
-    print(f"Начальное приближение: ({guess[0]}, {guess[1]})")
-    print("="*60)
-    newton_method(guess[0], guess[1], eps)
-    simple_iteration(guess[0], guess[1], eps)
-    seidel_method(guess[0], guess[1], eps)
+    initial_values = [(2.0, 1.0), (-1.0, 2.5), (-1.5, -2.0), (2.0, -2.0)]
+    solutions = []
+    
+    print("Система уравнений:")
+    print("F₁: x₁² + x₂² - 8 = 0")
+    print("F₂: 3x₁² - 2x₁x₂ - 3x₂² - 5x₁ + 3 = 0\n")
+
+    for value in initial_values:
+        x0, y0 = value
+        print(f"=== Начальное приближение x₀={x0}, y₀={y0} ===")
+        print("=== Метод Ньютона ===")
+        x, y, iters, conv, msg = newton_system(x0, y0, eps, max_iter)
+        print(f"x = {x:.6f}, y = {y:.6f}")
+        print(f"Итераций: {iters}")
+        print(f"{msg}\n")
+        
+        if conv and (x, y) not in [(s[0], s[1]) for s in solutions]:
+            solutions.append((x, y))
+
+        print("=== Метод простой итерации ===")
+        x, y, iters, conv, msg = simple_iteration_system(x0, y0, eps, max_iter)
+        print(f"x = {x:.6f}, y = {y:.6f}")
+        print(f"Итераций: {iters}")
+        print(f"{msg}\n")
+
+        print("=== Метод Зейделя ===")
+        x, y, iters, conv, msg = seidel_system(x0, y0, eps, max_iter)
+        print(f"x = {x:.6f}, y = {y:.6f}")
+        print(f"Итераций: {iters}")
+        print(f"{msg}")
+
+        print("============\n\n\n")
+    
+    plot_system(solutions)

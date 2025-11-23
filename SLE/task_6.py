@@ -26,15 +26,23 @@ def multiply_matrices(A, B):
 def copy_matrix(A):
     return [row[:] for row in A]
 
-def is_quasi_upper_triangular(A, eps):
+def is_quasi_upper_triangular(A, eps, prev_eigenvalues=None):
     n = len(A)
-    for i in range(1, n):
-        if i > 0 and abs(A[i][i - 1]) > eps:
-            if i == 1 or abs(A[i - 1][i - 2]) < eps:
-                continue
-        for j in range(0, i - 1):
-            if abs(A[i][j]) > eps:
+    
+    for m in range(n - 1):
+        sum_squares = 0.0
+        for i in range(m + 1, n):
+            sum_squares += A[i][m] * A[i][m]
+        
+        if math.sqrt(sum_squares) > eps:
+            if prev_eigenvalues is None:
                 return False
+            current_eigenvalues = extract_eigenvalues(A, eps)
+            for curr, prev in zip(current_eigenvalues, prev_eigenvalues):
+                if abs(curr - prev) >= eps:
+                    return False
+            return True
+    
     return True
 
 def qr_decomposition(A, eps):
@@ -50,7 +58,7 @@ def qr_decomposition(A, eps):
             continue
 
         v = [xi for xi in x]
-        v[0] += norm_x if x[0] >= 0 else -norm_x
+        v[0] -= norm_x if x[0] >= 0 else -norm_x
 
         norm_v = norm(v)
         if norm_v < eps:
@@ -125,6 +133,8 @@ def extract_eigenvalues(A, eps):
 
 def qr_algorithm(A, max_iterations, eps):
     A_current = copy_matrix(A)
+    prev_eigenvalues = None
+    
     for iteration in range(max_iterations):
         Q, R = qr_decomposition(A_current, eps)
         A_new = multiply_matrices(R, Q)
@@ -133,11 +143,12 @@ def qr_algorithm(A, max_iterations, eps):
         print(f"Итерация {iteration + 1}: диагональ {diag}")
 
         A_current = A_new
-        if is_quasi_upper_triangular(A_new, eps):
+        if is_quasi_upper_triangular(A_new, eps, prev_eigenvalues):
             print(f"Сходимость достигнута за {iteration + 1} итераций")
             break
+        prev_eigenvalues = extract_eigenvalues(A_new, eps)
     else:
-        print(f"Достигнуто максимальное число итераций: {max_iterations}")
+        print(f"Сходимость достигнута за {max_iterations} итераций")
     print_matrix(A_current)
     return extract_eigenvalues(A_current, eps)
 
@@ -153,7 +164,7 @@ if __name__ == "__main__":
     print("Исходная матрица:")
     print_matrix(A)
 
-    eps = 0.00000001
+    eps = 0.0001
     eigenvalues = qr_algorithm(A, 1000, eps)
 
     print("\nСобственные значения:")

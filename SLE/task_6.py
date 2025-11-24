@@ -28,22 +28,44 @@ def copy_matrix(A):
 
 def is_quasi_upper_triangular(A, eps, prev_eigenvalues=None):
     n = len(A)
+    m = 0
+    eigenvalues = []
+    end = True
     
     for m in range(n - 1):
         sum_squares = 0.0
         for i in range(m + 1, n):
             sum_squares += A[i][m] * A[i][m]
-        
-        if math.sqrt(sum_squares) > eps:
+
+        if sum_squares < eps or m == n-1:
+            eigenvalues.append(A[m][m])
+            m += 1
+        else:
+            a, b = A[m][m], A[m][m + 1]
+            c, d = A[m + 1][m], A[m + 1][m + 1]
+            trace = a + d
+            det = a * d - b * c
+            disc = trace * trace - 4 * det
+            if disc >= 0:
+                lambda1 = (trace + math.sqrt(disc)) / 2
+                lambda2 = (trace - math.sqrt(disc)) / 2
+                eigenvalues.append(complex(lambda1, 0))
+                eigenvalues.append(complex(lambda2, 0))
+            else:
+                real = trace / 2
+                imag = math.sqrt(-disc) / 2
+                eigenvalues.append(complex(real, imag))
+                eigenvalues.append(complex(real, -imag))
+            m += 2
+
             if prev_eigenvalues is None:
-                return False
-            current_eigenvalues = extract_eigenvalues(A, eps)
-            for curr, prev in zip(current_eigenvalues, prev_eigenvalues):
-                if abs(curr - prev) >= eps:
-                    return False
-            return True
+                end = False
+                continue
+
+            if abs(prev_eigenvalues[m-1] - eigenvalues[m-1]) > eps or abs(prev_eigenvalues[m-1] - eigenvalues[m-1]) > eps:
+                end = False
     
-    return True
+    return eigenvalues, end
 
 def qr_decomposition(A, eps):
     n = len(A)
@@ -129,6 +151,7 @@ def extract_eigenvalues(A, eps):
                 imag = math.sqrt(-disc) / 2
                 eigenvalues.extend([complex(real, imag), complex(real, -imag)])
             i += 2
+
     return eigenvalues
 
 def qr_algorithm(A, max_iterations, eps):
@@ -143,10 +166,12 @@ def qr_algorithm(A, max_iterations, eps):
         print(f"Итерация {iteration + 1}: диагональ {diag}")
 
         A_current = A_new
-        if is_quasi_upper_triangular(A_new, eps, prev_eigenvalues):
+        eigenvalues, stop = is_quasi_upper_triangular(A_new, eps, prev_eigenvalues)
+        if stop:
             print(f"Сходимость достигнута за {iteration + 1} итераций")
             break
-        prev_eigenvalues = extract_eigenvalues(A_new, eps)
+
+        prev_eigenvalues = eigenvalues
     else:
         print(f"Сходимость достигнута за {max_iterations} итераций")
     print_matrix(A_current)

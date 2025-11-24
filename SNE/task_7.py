@@ -1,6 +1,8 @@
 import math
 import matplotlib.pyplot as plt
 
+eps = 0.0001
+
 # Уравнение: e^(x^2) + 3^(-x) - 5x^2 - 1 = 0
 def f(x):
     """Функция уравнения"""
@@ -23,37 +25,27 @@ def d2f(x):
     except:
         return float('inf')
 
-def simple_iteration(x0, a, b, eps=0.0001, max_iter=1000, lam=0.3):
-    """Метод простой итерации с параметром релаксации λ"""
-    # Преобразуем: e^(x^2) + 3^(-x) - 5x^2 - 1 = 0
-    # => 5x^2 = e^(x^2) + 3^(-x) - 1
-    # => x = (e^(x^2) + 3^(-x) - 1) / (5x)
-    eps = eps / 10
-
-    def phi(x):
+def phi(x):
         if abs(x) < eps:
             return x
         return (math.exp(x**2) + 3**(-x) - 1) / (5 * x)
 
-    def phi_derivative(x):
-        if abs(x) < 1e-10:
-            return 1
-        
-        # φ(x) = (e^(x²) + 3^(-x) - 1) / (5x)
-        # φ'(x) = [(2x·e^(x²) - 3^(-x)·ln(3))·5x - (e^(x²) + 3^(-x) - 1)·5] / (5x)²
-        numerator = (2*x*math.exp(x**2) - 3**(-x)*math.log(3)) * x - (math.exp(x**2) + 3**(-x) - 1)
-        return numerator / (5 * x**2)
+def phi_derivative(x):
+    if abs(x) < eps:
+        return 1
     
-    for x in range(int(a)*10, int(b)*10):
-        if abs(phi_derivative(x/10)) > 1.0:
-            print(" - НЕ выполнено условие сходимости!")
+    numerator = (2*x*math.exp(x**2) - 3**(-x)*math.log(3)) * x - (math.exp(x**2) + 3**(-x) - 1)
+    return numerator / (5 * x**2)
+
+def simple_iteration(x0, a, b, max_iter=1000):
+
+    if abs(phi_derivative(a)) - 1.0 < eps and abs(phi_derivative(b)) - 1.0 < eps:
+            print("Выполнено условие сходимости!")
     else:
-        print(" - условие сходимости выполнено")
+        print("Условие сходимости НЕ выполнено!")
 
     iterations = [x0]
     x = x0
-
-    
 
     for i in range(max_iter):
         x_new = phi(x)
@@ -66,7 +58,7 @@ def simple_iteration(x0, a, b, eps=0.0001, max_iter=1000, lam=0.3):
     return x, max_iter, iterations
 
 # 2. Метод Ньютона
-def newton_method(x0, eps=0.0001, max_iter=1000):
+def newton_method(x0, max_iter=1000):
     """Метод Ньютона (касательных)"""
     iterations = []
     x = x0
@@ -76,7 +68,7 @@ def newton_method(x0, eps=0.0001, max_iter=1000):
         fx = f(x)
         dfx = df(x)
         
-        if abs(dfx) < 1e-10:
+        if abs(dfx) < eps:
             print("   Производная близка к нулю")
             break
             
@@ -90,7 +82,7 @@ def newton_method(x0, eps=0.0001, max_iter=1000):
     return x, max_iter, iterations
 
 # 3. Метод секущих
-def secant_method(x0, x1, eps=0.0001, max_iter=1000):
+def secant_method(x0, x1, max_iter=1000):
     """Метод секущих"""
     iterations = []
     iterations.append(x0)
@@ -100,7 +92,7 @@ def secant_method(x0, x1, eps=0.0001, max_iter=1000):
         fx0 = f(x0)
         fx1 = f(x1)
         
-        if abs(fx1 - fx0) < 1e-10:
+        if abs(fx1 - fx0) < eps:
             print("   Деление на ноль в методе секущих")
             break
         
@@ -114,14 +106,12 @@ def secant_method(x0, x1, eps=0.0001, max_iter=1000):
     
     return x1, max_iter, iterations
 # 4. Метод хорд
-def chord_method(a, b, eps=0.0001, max_iter=1000):
+def chord_method(a, b, max_iter=1000):
     """Метод хорд (метод ложного положения)"""
     iterations = []
     
     fa = f(a)
     fb = f(b)
-    
-    print(f"   f({a}) = {fa:.6f}, f({b}) = {fb:.6f}")
     
     if fa * fb > 0:
         print("   ОШИБКА: f(a)*f(b) > 0 - корня на отрезке нет!")
@@ -131,15 +121,12 @@ def chord_method(a, b, eps=0.0001, max_iter=1000):
     d2fa = d2f(a)
     d2fb = d2f(b)
     
-    print(f"   f''({a}) = {d2fa:.6f}, f''({b}) = {d2fb:.6f}")
-    
     if fa * d2fa > 0:
-        print(f"   Неподвижный конец: a = {a}")
         x = b
         iterations.append(x)
         for i in range(max_iter):
             fx = f(x)
-            if abs(fx - fa) < 1e-10:
+            if abs(fx - fa) < eps:
                 break
             x_new = x - fx * (x - a) / (fx - fa)
             iterations.append(x_new)
@@ -148,12 +135,11 @@ def chord_method(a, b, eps=0.0001, max_iter=1000):
                 return x_new, i + 1, iterations
             x = x_new
     else:
-        print(f"   Неподвижный конец: b = {b}")
         x = a
         iterations.append(x)
         for i in range(max_iter):
             fx = f(x)
-            if abs(fx - fb) < 1e-10:
+            if abs(fx - fb) < eps:
                 break
             x_new = x - fx * (x - b) / (fx - fb)
             iterations.append(x_new)
@@ -165,14 +151,12 @@ def chord_method(a, b, eps=0.0001, max_iter=1000):
     return x, max_iter, iterations
 
 # 5. Метод дихотомии (деления пополам)
-def bisection_method(a, b, eps=0.0001, max_iter=1000):
+def bisection_method(a, b, max_iter=1000):
     """Метод дихотомии"""
     iterations = []
     
     fa = f(a)
     fb = f(b)
-    
-    print(f"   f({a}) = {fa:.6f}, f({b}) = {fb:.6f}")
     
     if fa * fb > 0:
         print("   ОШИБКА: f(a)*f(b) > 0 - корня на отрезке нет!")
@@ -279,7 +263,7 @@ def check_newton_conditions(f, df, d2f, a, b, x0):
     dfx0 = df(x0)
     d2fx0 = d2f(x0)
     
-    if abs(dfx0) > 1e-10:
+    if abs(dfx0) > eps:
         condition1 = abs(fx0 * d2fx0) / (dfx0 ** 2)
         print(f"   В x0 = {x0}: {condition1:.6f}", end="")
         if condition1 < 1:
@@ -297,7 +281,7 @@ def check_newton_conditions(f, df, d2f, a, b, x0):
         dfx = df(x)
         d2fx = d2f(x)
         
-        if abs(dfx) > 1e-10:
+        if abs(dfx) > eps:
             cond = abs(fx * d2fx) / (dfx ** 2)
             if cond > max_condition:
                 max_condition = cond
@@ -308,7 +292,6 @@ def check_newton_conditions(f, df, d2f, a, b, x0):
     else:
         print(" ✗ >= 1")
     
-    # 3. Проверка постоянства знаков производных
     print(f"\n3. Знаки производных на отрезке:")
     
     # Первая производная
@@ -316,7 +299,7 @@ def check_newton_conditions(f, df, d2f, a, b, x0):
     df_b = df(b)
     print(f"   f'({a}) = {df_a:.6f}, f'({b}) = {df_b:.6f}")
     
-    if df_a * df_b > 0 and abs(df_a) > 1e-10 and abs(df_b) > 1e-10:
+    if df_a * df_b > 0 and abs(df_a) > eps and abs(df_b) > eps:
         print("   ✓ f'(x) не меняет знак и не равна нулю")
     else:
         print("   ✗ f'(x) меняет знак или равна нулю")
@@ -336,14 +319,13 @@ def check_newton_conditions(f, df, d2f, a, b, x0):
     
     # Проверяем все условия
     root_exists = fa * fb < 0
-    derivative_nonzero = abs(dfx0) > 1e-10
+    derivative_nonzero = abs(dfx0) > eps
     condition_satisfied = max_condition < 1
     derivatives_constant = (df_a * df_b > 0 and d2f_a * d2f_b > 0 and 
-                          abs(df_a) > 1e-10 and abs(df_b) > 1e-10)
+                          abs(df_a) > eps and abs(df_b) > eps)
     
     if all([root_exists, derivative_nonzero, condition_satisfied, derivatives_constant]):
         print("✓ Все условия выполнены - метод Ньютона сойдется")
-        print("✓ Так как сходится метод Ньютона - то сходятся и методы секущих и хорд.")
     else:
         print("✗ Не все условия выполнены - сходимость не гарантирована")
 
@@ -359,14 +341,7 @@ def check_convergence(x0, a, b):
         dfx0 = df(x0)
         d2fx0 = d2f(x0)
     except:
-        print("Ошибка вычисления в точке x0")
         return
-    
-    print(f"\nНачальное приближение: x0 = {x0}")
-    print(f"Отрезок локализации: [{a}, {b}]")
-    print(f"f(x0) = {fx0:.6f}")
-    print(f"f'(x0) = {dfx0:.6f}")
-    print(f"f''(x0) = {d2fx0:.6f}")
     
     # Метод Ньютона: f(x0)*f''(x0) > 0 и f'(x) ≠ 0
     print("\n--- Метод Ньютона ---")
@@ -381,7 +356,6 @@ def main():
     print("="*60)
     print("РЕШЕНИЕ НЕЛИНЕЙНОГО УРАВНЕНИЯ (Вариант 41)")
     print("Уравнение: e^(x^2) + 3^(-x) - 5x^2 - 1 = 0")
-    print(f"Точность: ε = {eps}")
     print("="*60)
     
     # Построение графика
@@ -394,8 +368,6 @@ def main():
     if not intervals:
         print("Отрезки с переменой знака не найдены!")
         return
-    
-    lam = float(input("Введите значение параметра релаксации λ (например, 0.5): "))
     
     for interval in intervals:
         a, b = interval
@@ -416,7 +388,7 @@ def main():
         # 1. Метод простой итерации
         print("\n1. МЕТОД ПРОСТОЙ ИТЕРАЦИИ")
         try:
-            root1, iter1, hist1 = simple_iteration(x0, a, b, eps, lam=lam)
+            root1, iter1, hist1 = simple_iteration(x0, a, b)
             print(f"   Корень: x = {root1:.6f}")
             print(f"   Число итераций: {iter1}")
             print(f"   Проверка: f(x) = {f(root1):.10f}")
@@ -428,7 +400,7 @@ def main():
         # 2. Метод Ньютона
         print("\n2. МЕТОД НЬЮТОНА")
         try:
-            root2, iter2, hist2 = newton_method(x0, eps)
+            root2, iter2, hist2 = newton_method(x0)
             print(f"   Корень: x = {root2:.6f}")
             print(f"   Число итераций: {iter2}")
             print(f"   Проверка: f(x) = {f(root2):.10f}")
@@ -440,7 +412,7 @@ def main():
         # 3. Метод секущих
         print("\n3. МЕТОД СЕКУЩИХ")
         try:
-            root3, iter3, hist3 = secant_method(a, b, eps)
+            root3, iter3, hist3 = secant_method(a, b)
             print(f"   Корень: x = {root3:.6f}")
             print(f"   Число итераций: {iter3}")
             print(f"   Проверка: f(x) = {f(root3):.10f}")
@@ -453,7 +425,7 @@ def main():
         # 4. Метод хорд
         print("\n4. МЕТОД ХОРД")
         try:
-            root4, iter4, hist4 = chord_method(a, b, eps)
+            root4, iter4, hist4 = chord_method(a, b)
             if root4:
                 print(f"   Корень: x = {root4:.6f}")
                 print(f"   Число итераций: {iter4}")
@@ -468,7 +440,7 @@ def main():
         # 5. Метод дихотомии
         print("\n5. МЕТОД ДИХОТОМИИ")
         try:
-            root5, iter5, hist5 = bisection_method(a, b, eps)
+            root5, iter5, hist5 = bisection_method(a, b)
             if root5:
                 print(f"   Корень: x = {root5:.6f}")
                 print(f"   Число итераций: {iter5}")

@@ -26,7 +26,7 @@ def multiply_matrices(A, B):
 def copy_matrix(A):
     return [row[:] for row in A]
 
-def is_quasi_upper_triangular(A, eps, prev_eigenvalues=None):
+def get_eigenvalues(A, eps, prev_eigenvalues=None):
     n = len(A)
     m = 0
     eigenvalues = []
@@ -142,7 +142,7 @@ def qr_algorithm(A, max_iterations, eps):
         print(f"Итерация {iteration + 1}: диагональ {diag}")
 
         A_current = A_new
-        eigenvalues, stop = is_quasi_upper_triangular(A_new, eps, prev_eigenvalues)
+        eigenvalues, stop = get_eigenvalues(A_new, eps, prev_eigenvalues)
         if stop:
             print(f"Сходимость достигнута за {iteration + 1} итераций")
             break

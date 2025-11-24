@@ -127,36 +127,12 @@ def verify_eigenvalues(A, eigenvalues, eps):
             print(f"λ{i} = {lam.real:.6f}: det(A - λI) = {det_value:.2e}")
         else:
             print(f"λ{i} = {lam.real:.6f} + {lam.imag:.6f}i: (комплексное, пропущено)")
-
-def extract_eigenvalues(A, eps):
-    n = len(A)
-    eigenvalues = []
-    i = 0
-    while i < n:
-        if i == n - 1 or abs(A[i + 1][i]) < eps:
-            eigenvalues.append(complex(A[i][i], 0))
-            i += 1
-        else:
-            a, b = A[i][i], A[i][i + 1]
-            c, d = A[i + 1][i], A[i + 1][i + 1]
-            trace = a + d
-            det = a * d - b * c
-            disc = trace * trace - 4 * det
-            if disc >= 0:
-                lambda1 = (trace + math.sqrt(disc)) / 2
-                lambda2 = (trace - math.sqrt(disc)) / 2
-                eigenvalues.extend([complex(lambda1, 0), complex(lambda2, 0)])
-            else:
-                real = trace / 2
-                imag = math.sqrt(-disc) / 2
-                eigenvalues.extend([complex(real, imag), complex(real, -imag)])
-            i += 2
-
     return eigenvalues
 
 def qr_algorithm(A, max_iterations, eps):
     A_current = copy_matrix(A)
     prev_eigenvalues = None
+    eigenvalues = None
     
     for iteration in range(max_iterations):
         Q, R = qr_decomposition(A_current, eps)
@@ -175,7 +151,7 @@ def qr_algorithm(A, max_iterations, eps):
     else:
         print(f"Сходимость достигнута за {max_iterations} итераций")
     print_matrix(A_current)
-    return extract_eigenvalues(A_current, eps)
+    return eigenvalues
 
 if __name__ == "__main__":
     A = [
@@ -189,7 +165,7 @@ if __name__ == "__main__":
     print("Исходная матрица:")
     print_matrix(A)
 
-    eps = 0.0001
+    eps = 0.00001
     eigenvalues = qr_algorithm(A, 1000, eps)
 
     print("\nСобственные значения:")

@@ -3,88 +3,275 @@
 # yi = | 3,2383 | 4,5458 | 3,1494 | 2,8715 | 0,8152 | 1,1248 | 0,4714 | ―1,0643 | ―0,1375 |  
 
 import matplotlib.pyplot as plt
+import numpy as np
 
-x = [-2.27, -1.83, -1.39, -0.95, -0.51, -0.07, 0.37, 0.81, 1.25]
-y = [3.2383, 4.5458, 3.1494, 2.8715, 0.8152, 1.1248, 0.4714, -1.0643, -0.1375]
+xi = [-2.27, -1.83, -1.39, -0.95, -0.51, -0.07, 0.37, 0.81, 1.25]
+yi = [3.2383, 4.5458, 3.1494, 2.8715, 0.8152, 1.1248, 0.4714, -1.0643, -0.1375]
 
-def lagrange(x_data, y_data, x_val):
-    result = 0
-    n = len(x_data)
-    for i in range(n):
-        l = y_data[i]
-        for j in range(n):
-            if i != j:
-                l *= (x_val - x_data[j]) / (x_data[i] - x_data[j])
-        result += l
+xStar = 0.176
+
+# Варианты выбора узлов
+quadraticVariant = 1  # 1=LeftInterval, 2=RightInterval
+cubicVariant = 3  # 1=LeftAndTwoRight, 2=Middle, 3=RightAndTwoSides
+
+
+def lagrangeBasis(i, x, xNodes):
+    """Вычисление базисного полинома Лагранжа"""
+    result = 1.0
+    for j in range(len(xNodes)):
+        if j != i:
+            result *= (x - xNodes[j]) / (xNodes[i] - xNodes[j])
     return result
 
-x_star = 0.176
 
-# Находим ближайшие точки к x*
-distances = [(abs(xi - x_star), i) for i, xi in enumerate(x)]
-distances.sort()
+def lagrangePolynomial(x, xNodes, yNodes):
+    """Вычисление значения полинома Лагранжа в точке x"""
+    result = 0.0
+    for i in range(len(xNodes)):
+        result += yNodes[i] * lagrangeBasis(i, x, xNodes)
+    return result
 
-# Для многочлена 2-й степени (3 точки)
-indices_2 = sorted([distances[i][1] for i in range(3)])
-x2 = [x[i] for i in indices_2]
-y2 = [y[i] for i in indices_2]
 
-# Для многочлена 3-й степени (4 точки)
-indices_3 = sorted([distances[i][1] for i in range(4)])
-x3 = [x[i] for i in indices_3]
-y3 = [y[i] for i in indices_3]
+def lagrangePolynomialString(xNodes, yNodes):
+    """Формирование строкового представления полинома Лагранжа"""
+    parts = []
 
-print("Интерполяционный многочлен Лагранжа 2-й степени")
-print(f"Узлы: x = {x2}")
-print(f"      y = {y2}")
-check_node = x2[1]
-check_val = lagrange(x2, y2, check_node)
-print(f"Проверка в узле x = {check_node}: L(x) = {check_val:.4f}, y = {y2[1]:.4f}")
-result_2 = lagrange(x2, y2, x_star)
-print(f"Значение в x* = {x_star}: L(x*) = {result_2:.4f}\n")
+    for i in range(len(yNodes)):
+        numerator = f"{abs(yNodes[i]):.4f}"
+        for j in range(len(xNodes)):
+            if j != i:
+                if xNodes[j] >= 0:
+                    numerator += f"(x-{xNodes[j]:.2f})"
+                else:
+                    numerator += f"(x+{abs(xNodes[j]):.2f})"
 
-print("Интерполяционный многочлен Лагранжа 3-й степени")
-print(f"Узлы: x = {x3}")
-print(f"      y = {y3}")
-check_node = x3[1]
-check_val = lagrange(x3, y3, check_node)
-print(f"Проверка в узле x = {check_node}: L(x) = {check_val:.4f}, y = {y3[1]:.4f}")
-result_3 = lagrange(x3, y3, x_star)
-print(f"Значение в x* = {x_star}: L(x*) = {result_3:.4f}")
+        denominator = ""
+        for j in range(len(xNodes)):
+            if j != i:
+                diff = xNodes[i] - xNodes[j]
+                denominator += f"({diff:.2f})"
 
-# Графики
-x_min, x_max = min(x), max(x)
-x_plot = [x_min + i * (x_max - x_min) / 199 for i in range(200)]
-y_plot_2 = [lagrange(x2, y2, xi) for xi in x_plot]
-y_plot_3 = [lagrange(x3, y3, xi) for xi in x_plot]
+        sign = "-" if yNodes[i] < 0 else ""
+        max_len = max(len(numerator), len(denominator))
+        line = "─" * (max_len - 8)
 
-plt.figure(figsize=(15, 5))
+        fraction = f"{sign}{numerator}\n{line}\n{denominator}"
+        parts.append(fraction)
 
-plt.subplot(1, 3, 1)
-plt.plot(x_plot, y_plot_2, 'b-', label='Многочлен 2-й степени')
-plt.plot(x2, y2, 'ro', label='Узлы интерполяции')
-plt.plot(x_star, result_2, 'g*', markersize=12, label=f'x* = {x_star}')
-plt.grid(True)
-plt.legend()
-plt.title('Многочлен Лагранжа 2-й степени')
+    return "\n\n + \n\n".join(parts)
 
-plt.subplot(1, 3, 2)
-plt.plot(x_plot, y_plot_3, 'r-', label='Многочлен 3-й степени')
-plt.plot(x3, y3, 'bo', label='Узлы интерполяции')
-plt.plot(x_star, result_3, 'g*', markersize=12, label=f'x* = {x_star}')
-plt.grid(True)
-plt.legend()
-plt.title('Многочлен Лагранжа 3-й степени')
 
-plt.subplot(1, 3, 3)
-errors_2 = [abs(lagrange(x2, y2, xi) - lagrange(x, y, xi)) for xi in x_plot]
-errors_3 = [abs(lagrange(x3, y3, xi) - lagrange(x, y, xi)) for xi in x_plot]
-plt.plot(x_plot, errors_2, 'b-', label='Погрешность 2-й степени')
-plt.plot(x_plot, errors_3, 'r-', label='Погрешность 3-й степени')
-plt.grid(True)
-plt.legend()
-plt.title('Сравнение точности')
-plt.yscale('log')
+def buildPolynomial2LeftInterval(xStar):
+    """Построение квадратичного полинома - левый интервал"""
+    leftIdx = 0
+    for i in range(len(xi) - 1):
+        if xi[i] <= xStar and xi[i + 1] >= xStar:
+            leftIdx = i
+            break
 
-plt.tight_layout()
-plt.show()
+    xNodes = [xi[leftIdx - 1], xi[leftIdx], xi[leftIdx + 1]]
+    yNodes = [yi[leftIdx - 1], yi[leftIdx], yi[leftIdx + 1]]
+    value = lagrangePolynomial(xStar, xNodes, yNodes)
+    return xNodes, yNodes, value
+
+
+def buildPolynomial2RightInterval(xStar):
+    """Построение квадратичного полинома - правый интервал"""
+    leftIdx = 0
+    for i in range(len(xi) - 1):
+        if xi[i] <= xStar and xi[i + 1] >= xStar:
+            leftIdx = i
+            break
+
+    xNodes = [xi[leftIdx], xi[leftIdx + 1], xi[leftIdx + 2]]
+    yNodes = [yi[leftIdx], yi[leftIdx + 1], yi[leftIdx + 2]]
+    value = lagrangePolynomial(xStar, xNodes, yNodes)
+    return xNodes, yNodes, value
+
+
+def buildPolynomial3LeftAndTwoRight(xStar):
+    """Построение кубического полинома - слева и два справа"""
+    leftIdx = 0
+    for i in range(len(xi) - 1):
+        if xi[i] <= xStar and xi[i + 1] >= xStar:
+            leftIdx = i
+            break
+
+    xNodes = [xi[leftIdx], xi[leftIdx + 1], xi[leftIdx + 2], xi[leftIdx + 3]]
+    yNodes = [yi[leftIdx], yi[leftIdx + 1], yi[leftIdx + 2], yi[leftIdx + 3]]
+    value = lagrangePolynomial(xStar, xNodes, yNodes)
+    return xNodes, yNodes, value
+
+
+def buildPolynomial3Middle(xStar):
+    """Построение кубического полинома - средний вариант"""
+    leftIdx = 0
+    for i in range(len(xi) - 1):
+        if xi[i] <= xStar and xi[i + 1] >= xStar:
+            leftIdx = i
+            break
+
+    xNodes = [xi[leftIdx - 1], xi[leftIdx], xi[leftIdx + 1], xi[leftIdx + 2]]
+    yNodes = [yi[leftIdx - 1], yi[leftIdx], yi[leftIdx + 1], yi[leftIdx + 2]]
+    value = lagrangePolynomial(xStar, xNodes, yNodes)
+    return xNodes, yNodes, value
+
+
+def buildPolynomial3RightAndTwoSides(xStar):
+    """Построение кубического полинома - справа и два слева"""
+    leftIdx = 0
+    for i in range(len(xi) - 1):
+        if xi[i] <= xStar and xi[i + 1] >= xStar:
+            leftIdx = i
+            break
+
+    xNodes = [xi[leftIdx - 2], xi[leftIdx - 1], xi[leftIdx], xi[leftIdx + 1]]
+    yNodes = [yi[leftIdx - 2], yi[leftIdx - 1], yi[leftIdx], yi[leftIdx + 1]]
+    value = lagrangePolynomial(xStar, xNodes, yNodes)
+    return xNodes, yNodes, value
+
+
+def buildPolynomial(degree, xStar):
+    """Построение полинома заданной степени"""
+    if degree == 2:
+        if quadraticVariant == 2:
+            return buildPolynomial2RightInterval(xStar)
+        return buildPolynomial2LeftInterval(xStar)
+
+    if cubicVariant == 2:
+        return buildPolynomial3Middle(xStar)
+    elif cubicVariant == 3:
+        return buildPolynomial3RightAndTwoSides(xStar)
+    else:
+        return buildPolynomial3LeftAndTwoRight(xStar)
+
+
+def create_plot():
+    """Создание графика"""
+    plt.figure(figsize=(12, 8))
+
+    # Построение полиномов
+    xNodes2, yNodes2, value2 = buildPolynomial(2, xStar)
+    xNodes3, yNodes3, value3 = buildPolynomial(3, xStar)
+
+    # Квадратичный полином
+    x_range2 = np.linspace(min(xNodes2), max(xNodes2), 200)
+    y_range2 = [lagrangePolynomial(x, xNodes2, yNodes2) for x in x_range2]
+    plt.plot(x_range2, y_range2, 'b-', linewidth=2, label=f'L₂(x) (2-я степень)')
+
+    # Кубический полином
+    x_range3 = np.linspace(min(xNodes3), max(xNodes3), 200)
+    y_range3 = [lagrangePolynomial(x, xNodes3, yNodes3) for x in x_range3]
+    plt.plot(x_range3, y_range3, 'r-', linewidth=2, label=f'L₃(x) (3-я степень)')
+
+    # Исходные точки
+    plt.plot(xi, yi, 'ko', markersize=8, markerfacecolor='white', label='Исходные данные')
+
+    # Точка интерполяции
+    y_avg = (value2 + value3) / 2
+    plt.plot(xStar, y_avg, 'g+', markersize=15, markeredgewidth=3, label=f'x* = {xStar}')
+
+    plt.grid(True, alpha=0.3)
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.title('Интерполяция Лагранжа')
+    plt.legend()
+    xMin, xMax = -5.0, 4.5
+    yMin, yMax = -3.0, 4.0
+    plt.axis([xMin, xMax, yMin, yMax])
+    plt.tight_layout()
+    plt.show()
+
+
+def print_results():
+    """Вывод результатов в консоль"""
+    xNodes2, yNodes2, value2 = buildPolynomial(2, xStar)
+    xNodes3, yNodes3, value3 = buildPolynomial(3, xStar)
+
+    poly2Str = lagrangePolynomialString(xNodes2, yNodes2)
+    poly3Str = lagrangePolynomialString(xNodes3, yNodes3)
+
+    # Названия вариантов
+    quad2Name = "LeftInterval" if quadraticVariant == 1 else "RightInterval"
+
+    if cubicVariant == 1:
+        cubic3Name = "LeftAndTwoRight"
+    elif cubicVariant == 2:
+        cubic3Name = "Middle"
+    else:
+        cubic3Name = "RightAndTwoSides"
+
+    print("=" * 80)
+    print("ИНТЕРПОЛЯЦИЯ ЛАГРАНЖА")
+    print("=" * 80)
+
+    # Исходные данные
+    print("\nИСХОДНЫЕ ДАННЫЕ:")
+    print("i:   ", " ".join(f"{i:8d}" for i in range(len(xi))))
+    print("xi:  ", " ".join(f"{x:8.2f}" for x in xi))
+    print("yi:  ", " ".join(f"{y:8.4f}" for y in yi))
+    print(f"Точка интерполяции: x* = {xStar:.3f}")
+
+    # Квадратичный полином
+    print("\n" + "=" * 80)
+    print(f"МНОГОЧЛЕН ЛАГРАНЖА 2-Й СТЕПЕНИ (вариант: {quad2Name})")
+    print("=" * 80)
+    print(f"Узлы: " + " ".join([f"x{i}={x:.2f}" for i, x in enumerate(xNodes2)]))
+    print(f"\nL₂(x) = ")
+    print(poly2Str)
+    print(f"\nL₂({xStar:.3f}) = {value2:.6f}")
+
+    # Кубический полином
+    print("\n" + "=" * 80)
+    print(f"МНОГОЧЛЕН ЛАГРАНЖА 3-Й СТЕПЕНИ (вариант: {cubic3Name})")
+    print("=" * 80)
+    print(f"Узлы: " + " ".join([f"x{i}={x:.2f}" for i, x in enumerate(xNodes3)]))
+    print(f"\nL₃(x) = ")
+    print(poly3Str)
+    print(f"\nL₃({xStar:.3f}) = {value3:.6f}")
+
+    # Проверка в узловых точках
+    print("\n" + "=" * 80)
+    print("ПРОВЕРКА В УЗЛОВЫХ ТОЧКАХ")
+    print("=" * 80)
+
+    print("\nДля L₂(x):")
+    for i in range(len(xNodes2)):
+        p = lagrangePolynomial(xNodes2[i], xNodes2, yNodes2)
+        print(f"  x={xNodes2[i]:.2f}: L₂(x)={p:.6f}, y={yNodes2[i]:.4f}")
+
+    print("\nДля L₃(x):")
+    for i in range(len(xNodes3)):
+        p = lagrangePolynomial(xNodes3[i], xNodes3, yNodes3)
+        print(f"  x={xNodes3[i]:.2f}: L₃(x)={p:.6f}, y={yNodes3[i]:.4f}")
+
+    # Сравнение результатов
+    print("\n" + "=" * 80)
+    print("СРАВНЕНИЕ РЕЗУЛЬТАТОВ")
+    print("=" * 80)
+    print(f"L₂({xStar:.3f}) = {value2:.6f}")
+    print(f"L₃({xStar:.3f}) = {value3:.6f}")
+    print(f"Разница |L₃ - L₂| = {abs(value3 - value2):.6f}")
+
+    # Информация о вариантах
+    print("\n" + "=" * 80)
+    print("ВАРИАНТЫ ВЫБОРА УЗЛОВ")
+    print("=" * 80)
+    print("Квадратичный (quadraticVariant):")
+    print("  1 - LeftInterval: x* в левом интервале [i-1, i, i+1]")
+    print("  2 - RightInterval: x* в правом интервале [i, i+1, i+2]")
+    print("\nКубический (cubicVariant):")
+    print("  1 - LeftAndTwoRight: x* слева, 2 справа [i, i+1, i+2, i+3]")
+    print("  2 - Middle: x* в среднем [i-1, i, i+1, i+2]")
+    print("  3 - RightAndTwoSides: x* справа, 2 по бокам [i-2, i-1, i, i+3]")
+    print(f"\nТекущие настройки: quadraticVariant={quadraticVariant}, cubicVariant={cubicVariant}")
+
+
+def main():
+    """Основная функция"""
+    print_results()
+    create_plot()
+
+
+if __name__ == "__main__":
+    main()

@@ -32,7 +32,7 @@ def get_eigenvalues(A, eps, prev_eigenvalues=None):
     eigenvalues = []
     end = True
     
-    for m in range(n - 1):
+    for m in range(n-2):
         sum_squares = 0.0
         for i in range(m + 1, n):
             sum_squares += A[i][m] * A[i][m]
@@ -49,8 +49,8 @@ def get_eigenvalues(A, eps, prev_eigenvalues=None):
             if disc >= 0:
                 lambda1 = (trace + math.sqrt(disc)) / 2
                 lambda2 = (trace - math.sqrt(disc)) / 2
-                eigenvalues.append(complex(lambda1, 0))
-                eigenvalues.append(complex(lambda2, 0))
+                eigenvalues.append(lambda1)
+                eigenvalues.append(lambda2)
             else:
                 real = trace / 2
                 imag = math.sqrt(-disc) / 2
@@ -64,6 +64,8 @@ def get_eigenvalues(A, eps, prev_eigenvalues=None):
 
             if abs(prev_eigenvalues[m-1] - eigenvalues[m-1]) > eps or abs(prev_eigenvalues[m-1] - eigenvalues[m-1]) > eps:
                 end = False
+    
+    eigenvalues.append(A[n-1][n-1])
     
     return eigenvalues, end
 
@@ -88,7 +90,7 @@ def qr_decomposition(A, eps):
 
         v = [vi / norm_v for vi in v]
 
-        # Матрица Хаусхолдера H = I - 2vv^T
+        # H = I - 2vv^T
         H = identity_matrix(n)
         for i in range(k, n):
             for j in range(k, n):

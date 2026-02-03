@@ -1,68 +1,108 @@
 import matplotlib.pyplot as plt
 
-X = [4.71, 3.63, 2.55, 1.47, 0.39, 0.69, 1.77, 2.85, 3.93, 5.01, 6.09]
-Y = [2.9853, 1.7984, 1.0358, 0.6987, 0.7116, 1.3214, 1.5742, 1.6371, 1.3936, 1.0309, 0.9754]
+xi = [-4.71, -3.63, -2.55, -1.47, -0.39, 0.69, 1.77, 2.85, 3.93, 5.01, 6.09]
+yi = [2.9853, 1.7984, 1.0358, 0.6987, 0.7116, 1.3214, 1.5742, 1.6371, 1.3936, 1.0309, 0.9754]
 x_star = -0.926
 
-def gauss(A, b):
-    n = len(b)
+def power_sum(x_arr, power):
+    return sum([x**power for x in x_arr])
+
+def power_sum_y(x_arr, y_arr, power_x):
+    return sum([y * (x**power_x) for x, y in zip(x_arr, y_arr)])
+
+def solve_gaussian(A, B):
+    n = len(B)
     for i in range(n):
-        for j in range(i+1, n):
-            m = A[j][i] / A[i][i]
-            for k in range(n):
-                A[j][k] -= m * A[i][k]
-            b[j] -= m * b[i]
-    x = [0] * n
-    for i in range(n-1, -1, -1):
-        x[i] = (b[i] - sum(A[i][j] * x[j] for j in range(i+1, n))) / A[i][i]
+        for k in range(i + 1, n):
+            c = A[k][i] / A[i][i]
+            for j in range(i, n):
+                A[k][j] -= c * A[i][j]
+            B[k] -= c * B[i]
+
+    x = [0 for _ in range(n)]
+    for i in range(n - 1, -1, -1):
+        x[i] = B[i] / A[i][i]
+        for k in range(i - 1, -1, -1):
+            B[k] -= A[k][i] * x[i]
     return x
 
-def least_squares(X, Y, degree):
-    n = len(X)
-    m = degree + 1
-    A = [[sum(X[k]**(i+j) for k in range(n)) for j in range(m)] for i in range(m)]
-    b = [sum(Y[k] * X[k]**i for k in range(n)) for i in range(m)]
-    return gauss(A, b)
+def evaluate_poly(coeffs, x):
+    res = 0
+    for i, a in enumerate(coeffs):
+        res += a * (x ** i)
+    return res
 
-def poly(x, c):
-    return sum(c[i] * x**i for i in range(len(c)))
+def least_squares(x_nodes, y_nodes, degree):
+    m = degree
+    A = [[0.0] * (m + 1) for _ in range(m + 1)]
+    B = [0.0] * (m + 1)
+    
+    for row in range(m + 1):
+        for col in range(m + 1):
+            A[row][col] = power_sum(x_nodes, row + col)
 
-def sse(X, Y, c):
-    return sum((Y[i] - poly(X[i], c))**2 for i in range(len(X)))
+        B[row] = power_sum_y(x_nodes, y_nodes, row)
+        
+    coeffs = solve_gaussian(A, B)
+    return coeffs
 
-c1 = least_squares(X, Y, 1)
-c2 = least_squares(X, Y, 2)
-c3 = least_squares(X, Y, 3)
 
-e1, e2, e3 = sse(X, Y, c1), sse(X, Y, c2), sse(X, Y, c3)
+degrees = [1, 2, 3]
+results = {}
 
-print(f"P1(x) = {c1[0]:.4f} + {c1[1]:.4f}*x")
-print(f"Ошибка: {e1:.6f}, P1({x_star}) = {poly(x_star, c1):.6f}\n")
+print("Метод наименьших квадратов")
 
-print(f"P2(x) = {c2[0]:.4f} + {c2[1]:.4f}*x + {c2[2]:.4f}*x^2")
-print(f"Ошибка: {e2:.6f}, P2({x_star}) = {poly(x_star, c2):.6f}\n")
+for deg in degrees:
+    coeffs = least_squares(xi, yi, deg)
+    
+    phi = sum([(evaluate_poly(coeffs, x) - y)**2 for x, y in zip(xi, yi)])
+    
+    val_star = evaluate_poly(coeffs, x_star)
+    
+    results[deg] = {
+        'coeffs': coeffs,
+        'phi': phi,
+        'val_star': val_star
+    }
+    
+    print(f"\nМногочлен {deg}-й степени:")
+    print(" ")
+    poly_str = f"F_{deg}(x) = "
+    for i, a in enumerate(coeffs):
+        if i == 0:
+            poly_str += f"{a:.4f}"
+        else:
+            sign = "+" if a >= 0 else "-"
+            poly_str += f" {sign} {abs(a):.4f}x^{i}"
+    print(poly_str)
+    
+    print("Коэффициенты (a0, a1...):")
+    print(f"{[round(c, 4) for c in coeffs]}")
+    print(f"Сумма квадратов ошибок Φ_{deg} = {phi:.4f}")
+    print(f"Значение F_{deg}(x*) = {val_star:.4f}")
 
-print(f"P3(x) = {c3[0]:.4f} + {c3[1]:.4f}*x + {c3[2]:.4f}*x^2 + {c3[3]:.4f}*x^3")
-print(f"Ошибка: {e3:.6f}, P3({x_star}) = {poly(x_star, c3):.6f}\n")
 
-x_plot = [min(min(X), x_star) - 0.5 + i * 0.01 for i in range(750)]
+x_plot = [min(xi) + i*(max(xi)-min(xi))/100 for i in range(101)]
 
-fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+plt.figure(figsize=(10, 7))
 
-for ax, c, deg, col in [(axes[0,0], c1, 1, 'b'), (axes[0,1], c2, 2, 'g'), (axes[1,0], c3, 3, 'r')]:
-    y_plot = [poly(x, c) for x in x_plot]
-    ax.plot(X, Y, 'ko', markersize=6)
-    ax.plot(x_plot, y_plot, col+'-')
-    ax.plot(x_star, poly(x_star, c), col+'*', markersize=12)
-    ax.axvline(x=x_star, color='gray', linestyle='--', alpha=0.5)
-    ax.set_title(f'Многочлен степени {deg}')
-    ax.grid(True, alpha=0.3)
+plt.scatter(xi, yi, color='black', label='Исходные данные (yi)', zorder=5)
 
-axes[1,1].bar(['Степень 1', 'Степень 2', 'Степень 3'], [e1, e2, e3], color=['b', 'g', 'r'])
-axes[1,1].set_title('Сравнение точности')
-axes[1,1].set_ylabel('Сумма квадратов ошибок')
-axes[1,1].grid(True, alpha=0.3, axis='y')
+colors = ['green', 'blue', 'red']
+styles = ['--', '-.', '-']
 
-plt.tight_layout()
+for deg in degrees:
+    y_plot = [evaluate_poly(results[deg]['coeffs'], x) for x in x_plot]
+    plt.plot(x_plot, y_plot, color=colors[deg-1], linestyle=styles[deg-1], 
+             label=f'F_{deg}(x) (Степень {deg})')
+    
+    y_star_plot = results[deg]['val_star']
+    plt.scatter([x_star], [y_star_plot], color=colors[deg-1], s=50, marker='x')
+
+plt.axvline(x=x_star, color='gray', linestyle=':', alpha=0.5, label=f'x*={x_star}')
+plt.title("Аппроксимация функций методом МНК")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.legend()
+plt.grid(True)
 plt.show()
-

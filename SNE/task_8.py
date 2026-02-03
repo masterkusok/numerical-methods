@@ -69,9 +69,15 @@ def jacobian(x1, x2):
     return df1_dx1(x1, x2), df1_dx2(x1, x2), df2_dx1(x1, x2), df2_dx2(x1, x2)
 
 def check_convergence(x1, x2):
-    norm1 = abs(dphi1_dx1(x1, x2)) + abs(dphi1_dx2(x1, x2))
-    norm2 = abs(dphi2_dx1(x1, x2)) + abs(dphi2_dx2(x1, x2))
-    max_norm = max(norm1, norm2)
+    norm_row1 = abs(dphi1_dx1(x1, x2)) + abs(dphi1_dx2(x1, x2))
+    norm_row2 = abs(dphi2_dx1(x1, x2)) + abs(dphi2_dx2(x1, x2))
+    max_norm_rows = max(norm_row1, norm_row2)
+    
+    norm_col1 = abs(dphi1_dx1(x1, x2)) + abs(dphi2_dx1(x1, x2))
+    norm_col2 = abs(dphi1_dx2(x1, x2)) + abs(dphi2_dx2(x1, x2))
+    max_norm_cols = max(norm_col1, norm_col2)
+    
+    max_norm = max(max_norm_rows, max_norm_cols)
     return max_norm < 1, max_norm
 
 def simple_iteration(x1, x2, epsilon, max_iter=100):

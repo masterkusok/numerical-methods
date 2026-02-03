@@ -1,93 +1,125 @@
-# **Вариант 41** (x* = 3,074)
-# 
-# | i | x_i   | y_i   |
-# |---|-------|-------|
-# | 1 | 5.267 | 3.682 |
-# | 2 | 3.928 | 4.298 |
-# | 3 | 9.702 | 3.554 |
-# | 4 | 5.704 | 6.008 |
-
 import matplotlib.pyplot as plt
 
-data = [(5.267, 3.682), (3.928, 4.298), (9.702, 3.554), (5.704, 6.008)]
-data.sort()
-x = [p[0] for p in data]
-y = [p[1] for p in data]
-n = len(x) - 1
-x_star = 3.074
+xi = [2.30, 2.522, 2.818, 3.262, 3.632, 3.928, 4.298, 4.742, 5.334, 5.704, 6.00]
+yi = [2.152, 3.751, 3.394, 1.979, 1.416, 1.795, 2.738, 1.593, 0.468, 0.327, 1.854]
+x_star = 3.704
 
-# Вычисление h_i
-h = [x[i+1] - x[i] for i in range(n)]
+def cubic_spline_interpolation(x_nodes, y_nodes, x_eval):
+    n = len(x_nodes) - 1
+    h = [x_nodes[i+1] - x_nodes[i] for i in range(n)] 
+    
+    P = [0.0] * n
+    Q = [0.0] * n
+    
+    for i in range(1, n):
+        hi_prev = h[i-1]
+        hi_curr = h[i]
+        
+        A = hi_prev
+        B = 2 * (hi_prev + hi_curr)
+        C = hi_curr
+        
+        F = 3 * ((y_nodes[i+1] - y_nodes[i])/hi_curr - (y_nodes[i] - y_nodes[i-1])/hi_prev)
+        
+        denominator = B + A * P[i-1]
+        P[i] = -C / denominator
+        Q[i] = (F - A * Q[i-1]) / denominator
+        
+    c = [0.0] * (n + 1)
+    c[n] = 0.0
+    
+    for i in range(n - 1, 0, -1):
+        c[i] = P[i] * c[i+1] + Q[i]
+        
+    splines = []
+    
+    target_spline = None
+    target_idx = -1
 
-# Система для нахождения c_i (метод прогонки)
-# Естественные граничные условия: c_0 = c_n = 0
-a = [0] * (n + 1)
-b = [1] + [2 * (h[i-1] + h[i]) for i in range(1, n)] + [1]
-c = [0] + [h[i] for i in range(1, n)] + [0]
-d = [0] + [3 * ((y[i+1] - y[i]) / h[i] - (y[i] - y[i-1]) / h[i-1]) for i in range(1, n)] + [0]
+    for i in range(n):
+        a = y_nodes[i]
+        c_curr = c[i]
+        b = (y_nodes[i+1] - y_nodes[i]) / h[i] - (h[i] / 3.0) * (c[i+1] + 2 * c_curr)
+        d = (c[i+1] - c_curr) / (3.0 * h[i])
+        
+        splines.append({'a': a, 'b': b, 'c': c_curr, 'd': d, 'x_start': x_nodes[i]})
+        
+        if x_nodes[i] <= x_eval <= x_nodes[i+1]:
+            target_spline = splines[-1]
+            target_idx = i + 1
+    
+    if target_spline:
+        dx = x_eval - target_spline['x_start']
+        val = target_spline['a'] + target_spline['b'] * dx + \
+              target_spline['c'] * (dx**2) + target_spline['d'] * (dx**3)
+        return val, target_spline, target_idx, splines
+    else:
+        return None, None, None, splines
 
-for i in range(1, n):
-    a[i] = h[i-1]
+val_star, coeffs_star, idx_star, all_splines = cubic_spline_interpolation(xi, yi, x_star)
 
-# Прогонка
-alpha = [0] * (n + 1)
-beta = [0] * (n + 1)
-for i in range(1, n + 1):
-    alpha[i] = c[i] / (b[i] - a[i] * alpha[i-1])
-    beta[i] = (d[i] + a[i] * beta[i-1]) / (b[i] - a[i] * alpha[i-1])
+print(f"\nРЕЗУЛЬТАТЫ ДЛЯ ТОЧКИ x* = {x_star}")
+print("-" * 50)
+if coeffs_star:
+    print(f"Точка попадает в интервал {idx_star}: [{xi[idx_star-1]}; {xi[idx_star]}]")
+    print(f"Коэффициенты сплайна на этом отрезке:")
+    print(f"a = {coeffs_star['a']:.6f}")
+    print(f"b = {coeffs_star['b']:.6f}")
+    print(f"c = {coeffs_star['c']:.6f}")
+    print(f"d = {coeffs_star['d']:.6f}")
+    print("-" * 50)
+    print(f"Значение функции S(x*) = {val_star:.6f}")
+    print("-" * 50)
 
-coef_c = [0] * (n + 1)
-for i in range(n - 1, -1, -1):
-    coef_c[i] = alpha[i] * coef_c[i+1] + beta[i]
+x_plot = []
+y_plot = []
+y_prime = []
+y_double_prime = []
 
-# Вычисление коэффициентов a, b, d
-coef_a = y[:]
-coef_b = [(y[i+1] - y[i]) / h[i] - h[i] * (coef_c[i+1] + 2 * coef_c[i]) / 3 for i in range(n)]
-coef_d = [(coef_c[i+1] - coef_c[i]) / (3 * h[i]) for i in range(n)]
+for i, s in enumerate(all_splines):
+    steps = 20
+    h_local = xi[i+1] - xi[i]
+    for k in range(steps):
+        xx = xi[i] + k * h_local / steps
+        dx = xx - xi[i]
+        yy = s['a'] + s['b']*dx + s['c']*(dx**2) + s['d']*(dx**3)
+        yy_prime = s['b'] + 2*s['c']*dx + 3*s['d']*(dx**2)
+        yy_double_prime = 2*s['c'] + 6*s['d']*dx
+        x_plot.append(xx)
+        y_plot.append(yy)
+        y_prime.append(yy_prime)
+        y_double_prime.append(yy_double_prime)
 
-# Поиск отрезка для x*
-idx = 0
-for i in range(n):
-    if x[i] <= x_star <= x[i+1]:
-        idx = i
-        break
+x_plot.append(xi[-1])
+y_plot.append(yi[-1])
+dx_last = xi[-1] - xi[-2]
+y_prime.append(all_splines[-1]['b'] + 2*all_splines[-1]['c']*dx_last + 3*all_splines[-1]['d']*(dx_last**2))
+y_double_prime.append(2*all_splines[-1]['c'] + 6*all_splines[-1]['d']*dx_last)
 
-# Вычисление значения сплайна в x*
-dx = x_star - x[idx]
-S_x_star = coef_a[idx] + coef_b[idx] * dx + coef_c[idx] * dx**2 + coef_d[idx] * dx**3
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 5))
 
-print(f"Значение сплайна в точке x* = {x_star}: S(x*) = {S_x_star:.6f}")
-print(f"\nКоэффициенты сплайна на отрезке [{x[idx]}, {x[idx+1]}]:")
-print(f"a = {coef_a[idx]:.6f}")
-print(f"b = {coef_b[idx]:.6f}")
-print(f"c = {coef_c[idx]:.6f}")
-print(f"d = {coef_d[idx]:.6f}")
+ax1.plot(x_plot, y_plot, 'b-', label='Кубический сплайн S(x)')
+ax1.plot(xi, yi, 'ro', label='Узлы интерполяции')
+ax1.plot(x_star, val_star, 'g*', markersize=12, label=f'Точка x*={x_star}')
+ax1.grid(True)
+ax1.set_title(f'Интерполяция кубическим сплайном (x*={x_star})')
+ax1.set_xlabel('x')
+ax1.set_ylabel('y')
+ax1.legend()
 
-# Графики
-plt.figure(figsize=(12, 5))
+ax2.plot(x_plot, y_prime, 'r-', label="Первая производная S'(x)")
+ax2.grid(True)
+ax2.set_title("Первая производная сплайна")
+ax2.set_xlabel('x')
+ax2.set_ylabel("S'(x)")
+ax2.legend()
 
-plt.subplot(1, 2, 1)
-for i in range(n):
-    x_seg = [x[i] + j * h[i] / 50 for j in range(51)]
-    y_seg = [coef_a[i] + coef_b[i] * (xi - x[i]) + coef_c[i] * (xi - x[i])**2 + coef_d[i] * (xi - x[i])**3 for xi in x_seg]
-    plt.plot(x_seg, y_seg, 'b-')
-plt.plot(x, y, 'ro', label='Узлы интерполяции', markersize=8)
-plt.plot(x_star, S_x_star, 'g*', markersize=15, label=f'x* = {x_star}')
-plt.grid(True)
-plt.legend()
-plt.title('Кубический сплайн')
-
-plt.subplot(1, 2, 2)
-for i in range(n):
-    x_seg = [x[i] + j * h[i] / 50 for j in range(51)]
-    y_seg = [coef_a[i] + coef_b[i] * (xi - x[i]) + coef_c[i] * (xi - x[i])**2 + coef_d[i] * (xi - x[i])**3 for xi in x_seg]
-    plt.plot(x_seg, y_seg, 'b-', label=f'Отрезок {i+1}' if i < n else '')
-plt.plot(x, y, 'ro', markersize=8)
-for i in range(n):
-    plt.axvline(x[i], color='gray', linestyle='--', alpha=0.3)
-plt.axvline(x[n], color='gray', linestyle='--', alpha=0.3)
-plt.grid(True)
-plt.title('Сплайн по отрезкам')
+ax3.plot(x_plot, y_double_prime, 'g-', label='Вторая производная S"(x)')
+ax3.grid(True)
+ax3.set_title('Вторая производная сплайна')
+ax3.set_xlabel('x')
+ax3.set_ylabel('S"(x)')
+ax3.legend()
 
 plt.tight_layout()
 plt.show()

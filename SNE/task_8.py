@@ -257,7 +257,6 @@ initial_points = [
     (2.0, -2.0)
 ]
 
-# 1. Выполняем расчеты
 for i, (start_x, start_y) in enumerate(initial_points, 1):
     print(f"\n{'='*60}")
     print(f"КОРЕНЬ #{i}: Начальное приближение ({start_x}, {start_y})")
@@ -269,8 +268,6 @@ for i, (start_x, start_y) in enumerate(initial_points, 1):
     solve_system('Seidel', start_x, start_y, eps)
     solve_system('Newton', start_x, start_y, eps)
 
-# 2. Выводим сводную таблицу (лог)
 print_final_summary()
 
-# 3. Строим "чистый" график с аналитическими решениями
 plot_analytical_system()
